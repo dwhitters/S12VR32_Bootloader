@@ -111,6 +111,10 @@ static UINT8 EraseFlash(void)
     case MASK_1N48A:
           //erase whole P-Flash memory except bootloader area
           return(PFlash_EraseSectorBySector(0x038000UL, 0x03EFDFUL));
+    
+    case MASK_0N11N:
+          //erase whole P-Flash memory except bootloader area
+          return(PFlash_EraseSectorBySector(0x038000UL, 0x03EFDFUL));
           
     default:
           return(UnknownPartID);
@@ -185,6 +189,11 @@ static UINT8 ProgramFlash(void)
                 break;
                 
           case MASK_1N48A:
+                if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                  return(SRecRangeError);
+                break;
+
+          case MASK_0N11N:
                 if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
                   return(SRecRangeError);
                 break;

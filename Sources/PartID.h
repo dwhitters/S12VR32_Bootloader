@@ -49,4 +49,7 @@ Version  Date          Author    Description of Changes
 #define MASK_0N48A 0xF380
 #define MASK_1N48A 0xF381
 
+//S12VR16,S12VR32
+#define MASK_0N11N 0x3380
+
 #endif

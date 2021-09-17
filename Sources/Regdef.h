@@ -52,7 +52,7 @@ Version  Date          Author    Description of Changes
 #define FCCOB       (*(volatile UINT16 *) 0x0000010A)
 #define SCIBDH       (*(volatile UINT8 *) 0x000000C8)
 #define SCIBDL       (*(volatile UINT8 *) 0x000000C9)
-#define PARTID      (*(volatile UINT16 *) 0x0000001A)
+#define PARTID      (*(volatile UINT16 *) 0x00003380)
 
 #define SCICR2_SBK_MASK                 1
 #define SCICR2_RWU_MASK                 2
