@@ -11,7 +11,8 @@
 #include "non_bank.sgm"
 #include "runtime.sgm"
 
-
+/*lint --e{957} , MISRA 8.1 REQ, these are runtime support functions and, as such, are not meant to be called in user code; they are only invoked via jumps, in compiler-generated code */
+/*lint -estring(553, __OPTION_ACTIVE__) , MISRA 19.11 REQ , __OPTION_ACTIVE__ is a built-in compiler construct to check for active compiler options */
 
 #ifndef __HCS12X__ /* it's different for the HCS12X. See the text below at the #else // __HCS12X__ */
 
@@ -21,21 +22,25 @@
    If none of them is given as argument, then no page accesses should occur and
    this runtime routine should not be used !
    To be on the save side, the runtime routines are created anyway.
-   If some of the -Cp options are given an adapted versions which only covers the
-   needed cases is produced.
 */
 
-/* if no compiler option -Cp is given, it is assumed that all possible are given : */
-
 /* Compile with option -DHCS12 to activate this code */
-#if defined(HCS12) || defined(_HCS12) || defined(__HCS12__) /* HCS12 family has PPAGE register only at 0x30 */
-#define PPAGE_ADDR (0x30+REGISTER_BASE)
+#if defined(HCS12) || defined(_HCS12) || defined(__HCS12__)
+#ifndef PPAGE_ADDR
+#ifdef __PPAGE_ADR__
+#define PPAGE_ADDR __PPAGE_ADR__
+#else
+#define PPAGE_ADDR (0x30 + REGISTER_BASE)
+#endif
+#endif
 #ifndef __PPAGE__ /* may be set already by option -CPPPAGE */
 #define __PPAGE__
 #endif
 /* Compile with option -DDG128 to activate this code */
 #elif defined DG128 /* HC912DG128 derivative has PPAGE register only at 0xFF */
+#ifndef PPAGE_ADDR
 #define PPAGE_ADDR (0xFF+REGISTER_BASE)
+#endif
 #ifndef __PPAGE__ /* may be set already by option -CPPPAGE */
 #define __PPAGE__
 #endif
@@ -59,10 +64,13 @@
 #define DPAGE_LOW_BOUND   0x7000u
 #define DPAGE_HIGH_BOUND  0x7fffu
 
-#define PPAGE_LOW_BOUND   (DPAGE_HIGH_BOUND+1)
+#define PPAGE_LOW_BOUND   (DPAGE_HIGH_BOUND+1u)
 #define PPAGE_HIGH_BOUND  0xBFFFu
 
+#ifndef REGISTER_BASE
 #define REGISTER_BASE      0x0u
+#endif
+
 #ifndef DPAGE_ADDR
 #define DPAGE_ADDR        (0x34u+REGISTER_BASE)
 #endif
@@ -79,11 +87,11 @@
     below the area controlled by the PPAGE.
   - the lower bound of the PPAGE area is equal to be the higher bound of the DPAGE area + 1
 */
-#if EPAGE_LOW_BOUND >= EPAGE_HIGH_BOUND || EPAGE_HIGH_BOUND >= DPAGE_LOW_BOUND || DPAGE_LOW_BOUND >= DPAGE_HIGH_BOUND || DPAGE_HIGH_BOUND >= PPAGE_LOW_BOUND || PPAGE_LOW_BOUND >= PPAGE_HIGH_BOUND
+#if (EPAGE_LOW_BOUND >= EPAGE_HIGH_BOUND) || (EPAGE_HIGH_BOUND >= DPAGE_LOW_BOUND) || (DPAGE_LOW_BOUND >= DPAGE_HIGH_BOUND) || (DPAGE_HIGH_BOUND >= PPAGE_LOW_BOUND) || (PPAGE_LOW_BOUND >= PPAGE_HIGH_BOUND)
 #error /* please adapt _GET_PAGE_REG for this non default page configuration */
 #endif
 
-#if DPAGE_HIGH_BOUND+1 != PPAGE_LOW_BOUND
+#if (DPAGE_HIGH_BOUND+1u) != PPAGE_LOW_BOUND
 #error /* please adapt _GET_PAGE_REG for this non default page configuration */
 #endif
 
@@ -99,7 +107,7 @@
 /* no page at all is specified */
 /* only specifying the right pages will speed up these functions a lot */
 #define USE_SEVERAL_PAGES 1
-#elif defined(__DPAGE__) && defined(__EPAGE__) || defined(__DPAGE__) && defined(__PPAGE__) || defined(__EPAGE__) && defined(__PPAGE__)
+#elif (defined(__DPAGE__) && defined(__EPAGE__)) || (defined(__DPAGE__) && defined(__PPAGE__)) || (defined(__EPAGE__) && defined(__PPAGE__))
 /* more than one page register is used */
 #define USE_SEVERAL_PAGES 1
 #else
@@ -152,47 +160,47 @@ extern "C"
 #pragma NO_FRAME
 
 static void NEAR _GET_PAGE_REG(void) { /*lint -esym(528, _GET_PAGE_REG) used in asm code */
-  __asm {
+  asm {
 L_DPAGE:
-        CPY     #DPAGE_LOW_BOUND  ;// test of lower bound of DPAGE
+        CPY     #DPAGE_LOW_BOUND  ;/* test of lower bound of DPAGE */
 #if defined(__EPAGE__)
-        BLO     L_EPAGE           ;// EPAGE accesses are possible
+        BLO     L_EPAGE           ;/* EPAGE accesses are possible */
 #else
-        BLO     L_NOPAGE          ;// no paged memory below accesses
+        BLO     L_NOPAGE          ;/* no paged memory below accesses */
 #endif
-        CPY     #DPAGE_HIGH_BOUND ;// test of higher bound DPAGE/lower bound PPAGE
+        CPY     #DPAGE_HIGH_BOUND ;/* test of higher bound DPAGE/lower bound PPAGE */
 #if defined(__PPAGE__)
-        BHI     L_PPAGE           ;// EPAGE accesses are possible
+        BHI     L_PPAGE           ;/* EPAGE accesses are possible */
 #else
-        BHI     L_NOPAGE          ;// no paged memory above accesses
+        BHI     L_NOPAGE          ;/* no paged memory above accesses */
 #endif
 FOUND_DPAGE:
-        LDX     #DPAGE_ADDR       ;// load page register address and clear zero flag
+        LDX     #DPAGE_ADDR       ;/* load page register address and clear zero flag */
         RTS
 
 #if defined(__PPAGE__)
 L_PPAGE:
-        CPY     #PPAGE_HIGH_BOUND ;// test of higher bound of PPAGE
+        CPY     #PPAGE_HIGH_BOUND ;/* test of higher bound of PPAGE */
         BHI     L_NOPAGE
 FOUND_PPAGE:
-        LDX     #PPAGE_ADDR       ;// load page register address and clear zero flag
+        LDX     #PPAGE_ADDR       ;/* load page register address and clear zero flag */
         RTS
 #endif
 
 #if defined(__EPAGE__)
 L_EPAGE:
-        CPY     #EPAGE_LOW_BOUND  ;// test of lower bound of EPAGE
+        CPY     #EPAGE_LOW_BOUND  ;/* test of lower bound of EPAGE */
         BLO     L_NOPAGE
-        CPY     #EPAGE_HIGH_BOUND ;// test of higher bound of EPAGE
+        CPY     #EPAGE_HIGH_BOUND ;/* test of higher bound of EPAGE */
         BHI     L_NOPAGE
 
 FOUND_EPAGE:
-        LDX     #EPAGE_ADDR       ;// load page register address and clear zero flag
+        LDX     #EPAGE_ADDR       ;/* load page register address and clear zero flag */
         RTS
 #endif
 
 L_NOPAGE:
-        ORCC    #0x04             ;// sets zero flag
+        ORCC    #0x04             ;/* sets zero flag */
         RTS
   }
 }
@@ -209,33 +217,33 @@ extern "C"
 #pragma NO_FRAME
 
 static void NEAR _GET_PAGE_REG(void) {	/*lint -esym(528, _GET_PAGE_REG) used in asm code */
-  __asm {
+  asm {
 L_PPAGE:
-        CPY     #PPAGE_LOW_BOUND  ;// test of lower bound of PPAGE
+        CPY     #PPAGE_LOW_BOUND  ;/* test of lower bound of PPAGE */
 #if defined( __EPAGE__ )
         BLO     L_EPAGE
 #else
-        BLO     L_NOPAGE          ;// no paged memory below
+        BLO     L_NOPAGE          ;/* no paged memory below */
 #endif
-        CPY     #PPAGE_HIGH_BOUND ;// test of higher bound PPAGE
+        CPY     #PPAGE_HIGH_BOUND ;/* test of higher bound PPAGE */
         BHI     L_NOPAGE
 FOUND_PPAGE:
-        LDX     #PPAGE_ADDR       ;// load page register address and clear zero flag
+        LDX     #PPAGE_ADDR       ;/* load page register address and clear zero flag */
         RTS
 #if defined( __EPAGE__ )
 L_EPAGE:
-        CPY     #EPAGE_LOW_BOUND  ;// test of lower bound of EPAGE
+        CPY     #EPAGE_LOW_BOUND  ;/* test of lower bound of EPAGE */
         BLO     L_NOPAGE
-        CPY     #EPAGE_HIGH_BOUND ;// test of higher bound of EPAGE
+        CPY     #EPAGE_HIGH_BOUND ;/* test of higher bound of EPAGE */
         BHI     L_NOPAGE
 FOUND_EPAGE:
-        LDX     #EPAGE_ADDR       ;// load page register address and clear zero flag
+        LDX     #EPAGE_ADDR       ;/* load page register address and clear zero flag */
         RTS
 #endif
 
-L_NOPAGE:                         ;// not in any allowed page area
-                                  ;// its a far access to a non paged variable
-        ORCC #0x04                ;// sets zero flag
+L_NOPAGE:                         ;/* not in any allowed page area */
+                                  ;/* its a far access to a non paged variable */
+        ORCC #0x04                ;/* sets zero flag */
         RTS
   }
 }
@@ -251,19 +259,19 @@ extern "C"
 #pragma NO_FRAME
 
 static void NEAR _GET_PAGE_REG(void) { /*lint -esym(528, _GET_PAGE_REG) used in asm code */
-  __asm {
+  asm {
 L_EPAGE:
-        CPY     #EPAGE_LOW_BOUND  ;// test of lower bound of EPAGE
+        CPY     #EPAGE_LOW_BOUND  ;/* test of lower bound of EPAGE */
         BLO     L_NOPAGE
-        CPY     #EPAGE_HIGH_BOUND ;// test of higher bound of EPAGE
+        CPY     #EPAGE_HIGH_BOUND ;/* test of higher bound of EPAGE */
         BHI     L_NOPAGE
 FOUND_EPAGE:
-        LDX     #EPAGE_ADDR       ;// load page register address and clear zero flag
+        LDX     #EPAGE_ADDR       ;/* load page register address and clear zero flag */
         RTS
 
-L_NOPAGE:                         ;// not in any allowed page area
-                                  ;// its a far access to a non paged variable
-        ORCC    #0x04             ;// sets zero flag
+L_NOPAGE:                         ;/* not in any allowed page area */
+                                  ;/* its a far access to a non paged variable */
+        ORCC    #0x04             ;/* sets zero flag */
         RTS
   }
 }
@@ -298,18 +306,18 @@ extern "C"
 
 void NEAR _SET_PAGE(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
-        STAB    0,X               ;// set page register
+        STAB    0,X               ;/* set page register */
 L_NOPAGE:
-        PULX                      ;// restore X register
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        STAB    PAGE_ADDR         ;// set page register
+  asm {
+        STAB    PAGE_ADDR         ;/* set page register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -338,31 +346,31 @@ extern "C"
 
 void NEAR _LOAD_FAR_8(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
-        PSHA                      ;// save A register
-        LDAA    0,X               ;// save page register
-        STAB    0,X               ;// set page register
-        LDAB    0,Y               ;// actual load, overwrites page
-        STAA    0,X               ;// restore page register
-        PULA                      ;// restore A register
-        PULX                      ;// restore X register
+        PSHA                      ;/* save A register */
+        LDAA    0,X               ;/* save page register */
+        STAB    0,X               ;/* set page register */
+        LDAB    0,Y               ;/* actual load, overwrites page */
+        STAA    0,X               ;/* restore page register */
+        PULA                      ;/* restore A register */
+        PULX                      ;/* restore X register */
         RTS
 L_NOPAGE:
-        LDAB    0,Y               ;// actual load, overwrites page
-        PULX                      ;// restore X register
+        LDAB    0,Y               ;/* actual load, overwrites page */
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        PSHA                      ;// save A register
-        LDAA    PAGE_ADDR         ;// save page register
-        STAB    PAGE_ADDR         ;// set page register
-        LDAB    0,Y               ;// actual load, overwrites page
-        STAA    PAGE_ADDR         ;// restore page register
-        PULA                      ;// restore A register
+  asm {
+        PSHA                      ;/* save A register */
+        LDAA    PAGE_ADDR         ;/* save page register */
+        STAB    PAGE_ADDR         ;/* set page register */
+        LDAB    0,Y               ;/* actual load, overwrites page */
+        STAA    PAGE_ADDR         ;/* restore page register */
+        PULA                      ;/* restore A register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -391,31 +399,31 @@ extern "C"
 
 void NEAR _LOAD_FAR_16(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
-        PSHA                      ;// save A register
-        LDAA    0,X               ;// save page register
-        STAB    0,X               ;// set page register
-        LDY     0,Y               ;// actual load, overwrites address
-        STAA    0,X               ;// restore page register
-        PULA                      ;// restore A register
-        PULX                      ;// restore X register
+        PSHA                      ;/* save A register */
+        LDAA    0,X               ;/* save page register */
+        STAB    0,X               ;/* set page register */
+        LDY     0,Y               ;/* actual load, overwrites address */
+        STAA    0,X               ;/* restore page register */
+        PULA                      ;/* restore A register */
+        PULX                      ;/* restore X register */
         RTS
 L_NOPAGE:
-        LDY     0,Y               ;// actual load, overwrites address
-        PULX                      ;// restore X register
+        LDY     0,Y               ;/* actual load, overwrites address */
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        PSHA                      ;// save A register
-        LDAA    PAGE_ADDR         ;// save page register
-        STAB    PAGE_ADDR         ;// set page register
-        LDY     0,Y               ;// actual load, overwrites address
-        STAA    PAGE_ADDR         ;// restore page register
-        PULA                      ;// restore A register
+  asm {
+        PSHA                      ;/* save A register */
+        LDAA    PAGE_ADDR         ;/* save page register */
+        STAB    PAGE_ADDR         ;/* set page register */
+        LDY     0,Y               ;/* actual load, overwrites address */
+        STAA    PAGE_ADDR         ;/* restore page register */
+        PULA                      ;/* restore A register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -443,34 +451,34 @@ extern "C"
 
 void NEAR _LOAD_FAR_24(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
-        PSHA                      ;// save A register
-        LDAA    0,X               ;// save page register
-        STAB    0,X               ;// set page register
-        LDAB    0,Y               ;// actual load, overwrites page of address
-        LDY     1,Y               ;// actual load, overwrites offset of address
-        STAA    0,X               ;// restore page register
-        PULA                      ;// restore A register
-        PULX                      ;// restore X register
+        PSHA                      ;/* save A register */
+        LDAA    0,X               ;/* save page register */
+        STAB    0,X               ;/* set page register */
+        LDAB    0,Y               ;/* actual load, overwrites page of address */
+        LDY     1,Y               ;/* actual load, overwrites offset of address */
+        STAA    0,X               ;/* restore page register */
+        PULA                      ;/* restore A register */
+        PULX                      ;/* restore X register */
         RTS
 L_NOPAGE:
-        LDAB    0,Y               ;// actual load, overwrites page of address
-        LDY     1,Y               ;// actual load, overwrites offset of address
-        PULX                      ;// restore X register
+        LDAB    0,Y               ;/* actual load, overwrites page of address */
+        LDY     1,Y               ;/* actual load, overwrites offset of address */
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        PSHA                      ;// save A register
-        LDAA    PAGE_ADDR         ;// save page register
-        STAB    PAGE_ADDR         ;// set page register
-        LDAB    0,Y               ;// actual load, overwrites page of address
-        LDY     1,Y               ;// actual load, overwrites offset of address
-        STAA    PAGE_ADDR         ;// restore page register
-        PULA                      ;// restore A register
+  asm {
+        PSHA                      ;/* save A register */
+        LDAA    PAGE_ADDR         ;/* save page register */
+        STAB    PAGE_ADDR         ;/* set page register */
+        LDAB    0,Y               ;/* actual load, overwrites page of address */
+        LDY     1,Y               ;/* actual load, overwrites offset of address */
+        STAA    PAGE_ADDR         ;/* restore page register */
+        PULA                      ;/* restore A register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -501,32 +509,32 @@ extern "C"
 
 void NEAR _LOAD_FAR_32(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
-        LDAA    0,X               ;// save page register
-        PSHA                      ;// put it onto the stack
-        STAB    0,X               ;// set page register
-        LDD     2,Y               ;// actual load, low word
-        LDY     0,Y               ;// actual load, high word
-        MOVB    1,SP+,0,X         ;// restore page register
-        PULX                      ;// restore X register
+        LDAA    0,X               ;/* save page register */
+        PSHA                      ;/* put it onto the stack */
+        STAB    0,X               ;/* set page register */
+        LDD     2,Y               ;/* actual load, low word */
+        LDY     0,Y               ;/* actual load, high word */
+        MOVB    1,SP+,0,X         ;/* restore page register */
+        PULX                      ;/* restore X register */
         RTS
 L_NOPAGE:
-        LDD     2,Y               ;// actual load, low word
-        LDY     0,Y               ;// actual load, high word
-        PULX                      ;// restore X register
+        LDD     2,Y               ;/* actual load, low word */
+        LDY     0,Y               ;/* actual load, high word */
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        LDAA    PAGE_ADDR         ;// save page register
-        PSHA                      ;// put it onto the stack
-        STAB    PAGE_ADDR         ;// set page register
-        LDD     2,Y               ;// actual load, low word
-        LDY     0,Y               ;// actual load, high word
-        MOVB    1,SP+,PAGE_ADDR   ;// restore page register
+  asm {
+        LDAA    PAGE_ADDR         ;/* save page register */
+        PSHA                      ;/* put it onto the stack */
+        STAB    PAGE_ADDR         ;/* set page register */
+        LDD     2,Y               ;/* actual load, low word */
+        LDY     0,Y               ;/* actual load, high word */
+        MOVB    1,SP+,PAGE_ADDR   ;/* restore page register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -556,31 +564,31 @@ extern "C"
 
 void NEAR _STORE_FAR_8(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
-        PSHB                      ;// save B register
-        LDAB    0,X               ;// save page register
-        MOVB    0,SP, 0,X         ;// set page register
-        STAA    0,Y               ;// store the value passed in A
-        STAB    0,X               ;// restore page register
-        PULB                      ;// restore B register
-        PULX                      ;// restore X register
+        PSHB                      ;/* save B register */
+        LDAB    0,X               ;/* save page register */
+        MOVB    0,SP, 0,X         ;/* set page register */
+        STAA    0,Y               ;/* store the value passed in A */
+        STAB    0,X               ;/* restore page register */
+        PULB                      ;/* restore B register */
+        PULX                      ;/* restore X register */
         RTS
 L_NOPAGE:
-        STAA    0,Y               ;// store the value passed in A
-        PULX                      ;// restore X register
+        STAA    0,Y               ;/* store the value passed in A */
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        PSHB                      ;// save A register
-        LDAB    PAGE_ADDR         ;// save page register
-        MOVB    0,SP,PAGE_ADDR    ;// set page register
-        STAA    0,Y               ;// store the value passed in A
-        STAB    PAGE_ADDR         ;// restore page register
-        PULB                      ;// restore B register
+  asm {
+        PSHB                      ;/* save A register */
+        LDAB    PAGE_ADDR         ;/* save page register */
+        MOVB    0,SP,PAGE_ADDR    ;/* set page register */
+        STAA    0,Y               ;/* store the value passed in A */
+        STAB    PAGE_ADDR         ;/* restore page register */
+        PULB                      ;/* restore B register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -610,33 +618,33 @@ extern "C"
 
 void NEAR _STORE_FAR_16(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
 
         PSHA
-        LDAA    0,X               ;// save page register
-        STAB    0,X               ;// set page register
-        MOVW    1,SP,0,Y          ;// store the value passed in X
-        STAA    0,X               ;// restore page register
-        PULA                      ;// restore A register
-        PULX                      ;// restore X register
+        LDAA    0,X               ;/* save page register */
+        STAB    0,X               ;/* set page register */
+        MOVW    1,SP,0,Y          ;/* store the value passed in X */
+        STAA    0,X               ;/* restore page register */
+        PULA                      ;/* restore A register */
+        PULX                      ;/* restore X register */
         RTS
 
 L_NOPAGE:
-        STX 0,Y                   ;// store the value passed in X
-        PULX                      ;// restore X register
+        STX 0,Y                   ;/* store the value passed in X */
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        PSHA                      ;// save A register
-        LDAA    PAGE_ADDR         ;// save page register
-        STAB    PAGE_ADDR         ;// set page register
-        STX     0,Y               ;// store the value passed in X
-        STAA    PAGE_ADDR         ;// restore page register
-        PULA                      ;// restore A register
+  asm {
+        PSHA                      ;/* save A register */
+        LDAA    PAGE_ADDR         ;/* save page register */
+        STAB    PAGE_ADDR         ;/* set page register */
+        STX     0,Y               ;/* store the value passed in X */
+        STAA    PAGE_ADDR         ;/* restore page register */
+        PULA                      ;/* restore A register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -665,36 +673,36 @@ extern "C"
 
 void NEAR _STORE_FAR_24(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
 
         PSHA
-        LDAA    0,X               ;// save page register
-        STAB    0,X               ;// set page register
-        MOVW    1,SP, 1,Y         ;// store the value passed in X
-        MOVB    0,SP, 0,Y         ;// store the value passed in A
-        STAA    0,X               ;// restore page register
-        PULA                      ;// restore A register
-        PULX                      ;// restore X register
+        LDAA    0,X               ;/* save page register */
+        STAB    0,X               ;/* set page register */
+        MOVW    1,SP, 1,Y         ;/* store the value passed in X */
+        MOVB    0,SP, 0,Y         ;/* store the value passed in A */
+        STAA    0,X               ;/* restore page register */
+        PULA                      ;/* restore A register */
+        PULX                      ;/* restore X register */
         RTS
 
 L_NOPAGE:
-        STX     1,Y               ;// store the value passed in X
-        STAA    0,Y               ;// store the value passed in X
-        PULX                      ;// restore X register
+        STX     1,Y               ;/* store the value passed in X */
+        STAA    0,Y               ;/* store the value passed in X */
+        PULX                      ;/* restore X register */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        PSHA                      ;// save A register
-        LDAA    PAGE_ADDR         ;// save page register
-        STAB    PAGE_ADDR         ;// set page register
-        MOVB    0,SP, 0,Y         ;// store the value passed in A
-        STX     1,Y               ;// store the value passed in X
-        STAA    PAGE_ADDR         ;// restore page register
-        PULA                      ;// restore A register
+  asm {
+        PSHA                      ;/* save A register */
+        LDAA    PAGE_ADDR         ;/* save page register */
+        STAB    PAGE_ADDR         ;/* set page register */
+        MOVB    0,SP, 0,Y         ;/* store the value passed in A */
+        STX     1,Y               ;/* store the value passed in X */
+        STAA    PAGE_ADDR         ;/* restore page register */
+        PULA                      ;/* restore A register */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -724,39 +732,39 @@ extern "C"
 
 void NEAR _STORE_FAR_32(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        PSHX                      ;// save X register
+  asm {
+        PSHX                      ;/* save X register */
         __PIC_JSR(_GET_PAGE_REG)
         BEQ     L_NOPAGE
 
         PSHD
-        LDAA    0,X               ;// save page register
-        MOVB    6,SP, 0,X         ;// set page register
-        MOVW    2,SP, 0,Y         ;// store the value passed in X (high word)
-        MOVW    0,SP, 2,Y         ;// store the value passed in D (low word)
-        STAA    0,X               ;// restore page register
-        PULD                      ;// restore A register
+        LDAA    0,X               ;/* save page register */
+        MOVB    6,SP, 0,X         ;/* set page register */
+        MOVW    2,SP, 0,Y         ;/* store the value passed in X (high word) */
+        MOVW    0,SP, 2,Y         ;/* store the value passed in D (low word) */
+        STAA    0,X               ;/* restore page register */
+        PULD                      ;/* restore A register */
         BRA     done
 
 L_NOPAGE:
-        MOVW    0,SP, 0,Y         ;// store the value passed in X (high word)
-        STD           2,Y         ;// store the value passed in D (low word)
+        MOVW    0,SP, 0,Y         ;/* store the value passed in X (high word) */
+        STD           2,Y         ;/* store the value passed in D (low word) */
 done:
-        PULX                      ;// restore X register
-        MOVW    0,SP, 1,+SP       ;// move return address
+        PULX                      ;/* restore X register */
+        MOVW    0,SP, 1,+SP       ;/* move return address */
         RTS
   }
 #else /* USE_SEVERAL_PAGES */
-  __asm {
-        PSHD                      ;// save D register
-        LDAA    PAGE_ADDR         ;// save page register
-        LDAB    4,SP              ;// load page part of address
-        STAB    PAGE_ADDR         ;// set page register
-        STX     0,Y               ;// store the value passed in X
-        MOVW    0,SP, 2,Y         ;// store the value passed in D (low word)
-        STAA    PAGE_ADDR         ;// restore page register
-        PULD                      ;// restore D register
-        MOVW    0,SP, 1,+SP       ;// move return address
+  asm {
+        PSHD                      ;/* save D register */
+        LDAA    PAGE_ADDR         ;/* save page register */
+        LDAB    4,SP              ;/* load page part of address */
+        STAB    PAGE_ADDR         ;/* set page register */
+        STX     0,Y               ;/* store the value passed in X */
+        MOVW    0,SP, 2,Y         ;/* store the value passed in D (low word) */
+        STAA    PAGE_ADDR         ;/* restore page register */
+        PULD                      ;/* restore D register */
+        MOVW    0,SP, 1,+SP       ;/* move return address */
         RTS
   }
 #endif /* USE_SEVERAL_PAGES */
@@ -810,56 +818,56 @@ extern "C"
 
 void NEAR _FAR_COPY_RC(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        DEX                       ;// source addr-=1, because loop counter ends at 1
-        PSHX                      ;// save source offset
-        PSHD                      ;// save both pages
-        DEY                       ;// destination addr-=1, because loop counter ends at 1
-        PSHY                      ;// save destination offset
-        LDY     6,SP              ;// Load Return address
-        LDX     2,Y+              ;// Load Size to copy
-        STY     6,SP              ;// Store adjusted return address
+  asm {
+        DEX                       ;/* source addr-=1, because loop counter ends at 1 */
+        PSHX                      ;/* save source offset */
+        PSHD                      ;/* save both pages */
+        DEY                       ;/* destination addr-=1, because loop counter ends at 1 */
+        PSHY                      ;/* save destination offset */
+        LDY     6,SP              ;/* Load Return address */
+        LDX     2,Y+              ;/* Load Size to copy */
+        STY     6,SP              ;/* Store adjusted return address */
 loop:
-        LDD     4,SP              ;// load source offset
-        LEAY    D,X               ;// calculate actual source address
-        LDAB    2,SP              ;// load source page
-        __PIC_JSR(_LOAD_FAR_8)    ;// load 1 source byte
-        PSHB                      ;// save value
-        LDD     0+1,SP            ;// load destination offset
-        LEAY    D,X               ;// calculate actual destination address
-        PULA                      ;// restore value
-        LDAB    3,SP              ;// load destination page
-        __PIC_JSR(_STORE_FAR_8)   ;// store one byte
+        LDD     4,SP              ;/* load source offset */
+        LEAY    D,X               ;/* calculate actual source address */
+        LDAB    2,SP              ;/* load source page */
+        __PIC_JSR(_LOAD_FAR_8)    ;/* load 1 source byte */
+        PSHB                      ;/* save value */
+        LDD     0+1,SP            ;/* load destination offset */
+        LEAY    D,X               ;/* calculate actual destination address */
+        PULA                      ;/* restore value */
+        LDAB    3,SP              ;/* load destination page */
+        __PIC_JSR(_STORE_FAR_8)   ;/* store one byte */
         DEX
         BNE     loop
-        LEAS    6,SP              ;// release stack
-        _SRET                     ;// debug info only: This is the last instr of a function with a special return
-        RTS                       ;// return
+        LEAS    6,SP              ;/* release stack */
+        _SRET                     ;/* debug info only: This is the last instr of a function with a special return */
+        RTS                       ;/* return */
   }
 #else
-  __asm {
-        PSHD                      ;// store page registers
+  asm {
+        PSHD                      ;/* store page registers */
         TFR     X,D
-        PSHY                      ;// temporary space
-        LDY     4,SP              ;// load return address
-        ADDD    2,Y+              ;// calculate source end address. Increment return address
+        PSHY                      ;/* temporary space */
+        LDY     4,SP              ;/* load return address */
+        ADDD    2,Y+              ;/* calculate source end address. Increment return address */
         STY     4,SP
         PULY
-        PSHD                      ;// store src end address
-        LDAB    2,SP              ;// reload source page
-        LDAA    PAGE_ADDR         ;// save page register
+        PSHD                      ;/* store src end address */
+        LDAB    2,SP              ;/* reload source page */
+        LDAA    PAGE_ADDR         ;/* save page register */
         PSHA
 loop:
-        STAB    PAGE_ADDR         ;// set source page
-        LDAA    1,X+              ;// load value
-        MOVB    4,SP, PAGE_ADDR   ;// set destination page
+        STAB    PAGE_ADDR         ;/* set source page */
+        LDAA    1,X+              ;/* load value */
+        MOVB    4,SP, PAGE_ADDR   ;/* set destination page */
         STAA    1,Y+
         CPX     1,SP
         BNE     loop
 
-        LDAA    5,SP+             ;// restore old page value and release stack
-        STAA    PAGE_ADDR         ;// store it into page register
-        _SRET                     ;// debug info only: This is the last instr of a function with a special return
+        LDAA    5,SP+             ;/* restore old page value and release stack */
+        STAA    PAGE_ADDR         ;/* store it into page register */
+        _SRET                     ;/* debug info only: This is the last instr of a function with a special return */
         RTS
   }
 #endif
@@ -887,52 +895,52 @@ extern "C"
 
 void NEAR _FAR_COPY(void) {
 #if USE_SEVERAL_PAGES
-  __asm {
-        DEX                       ;// source addr-=1, because loop counter ends at 1
-        PSHX                      ;// save source offset
-        PSHD                      ;// save both pages
-        DEY                       ;// destination addr-=1, because loop counter ends at 1
-        PSHY                      ;// save destination offset
-        LDX     8,SP              ;// load counter, assuming counter > 0
+  asm {
+        DEX                       ;/* source addr-=1, because loop counter ends at 1 */
+        PSHX                      ;/* save source offset */
+        PSHD                      ;/* save both pages */
+        DEY                       ;/* destination addr-=1, because loop counter ends at 1 */
+        PSHY                      ;/* save destination offset */
+        LDX     8,SP              ;/* load counter, assuming counter > 0 */
 
 loop:
-        LDD     4,SP              ;// load source offset
-        LEAY    D,X               ;// calculate actual source address
-        LDAB    2,SP              ;// load source page
-        __PIC_JSR(_LOAD_FAR_8)    ;// load 1 source byte
-        PSHB                      ;// save value
-        LDD     0+1,SP            ;// load destination offset
-        LEAY    D,X               ;// calculate actual destination address
-        PULA                      ;// restore value
-        LDAB    3,SP              ;// load destination page
-        __PIC_JSR(_STORE_FAR_8)   ;// store one byte
+        LDD     4,SP              ;/* load source offset */
+        LEAY    D,X               ;/* calculate actual source address */
+        LDAB    2,SP              ;/* load source page */
+        __PIC_JSR(_LOAD_FAR_8)    ;/* load 1 source byte */
+        PSHB                      ;/* save value */
+        LDD     0+1,SP            ;/* load destination offset */
+        LEAY    D,X               ;/* calculate actual destination address */
+        PULA                      ;/* restore value */
+        LDAB    3,SP              ;/* load destination page */
+        __PIC_JSR(_STORE_FAR_8)   ;/* store one byte */
         DEX
         BNE     loop
-        LDX     6,SP              ;// load return address
-        LEAS    10,SP             ;// release stack
-        JMP     0,X               ;// return
+        LDX     6,SP              ;/* load return address */
+        LEAS    10,SP             ;/* release stack */
+        JMP     0,X               ;/* return */
   }
 #else
-  __asm {
-        PSHD                      ;// store page registers
+  asm {
+        PSHD                      ;/* store page registers */
         TFR     X,D
-        ADDD    4,SP              ;// calculate source end address
+        ADDD    4,SP              ;/* calculate source end address */
         STD     4,SP
-        PULB                      ;// reload source page
-        LDAA    PAGE_ADDR         ;// save page register
+        PULB                      ;/* reload source page */
+        LDAA    PAGE_ADDR         ;/* save page register */
         PSHA
 loop:
-        STAB    PAGE_ADDR         ;// set source page
-        LDAA    1,X+              ;// load value
-        MOVB    1,SP, PAGE_ADDR   ;// set destination page
+        STAB    PAGE_ADDR         ;/* set source page */
+        LDAA    1,X+              ;/* load value */
+        MOVB    1,SP, PAGE_ADDR   ;/* set destination page */
         STAA    1,Y+
         CPX     4,SP
         BNE     loop
 
-        LDAA    2,SP+             ;// restore old page value and release stack
-        STAA    PAGE_ADDR         ;// store it into page register
-        LDX     4,SP+             ;// release stack and load return address
-        JMP     0,X               ;// return
+        LDAA    2,SP+             ;/* restore old page value and release stack */
+        STAA    PAGE_ADDR         ;/* store it into page register */
+        LDX     4,SP+             ;/* release stack and load return address */
+        JMP     0,X               ;/* return */
   }
 #endif
 }
@@ -1098,9 +1106,11 @@ loop:
 
 */
 
+/*lint -e10, -e106, -e30 */
 #if __OPTION_ACTIVE__("-MapRAM")
 #define __HCS12XE_RAMHM_SET__
 #endif
+/*lint +e10, +e106, +e30 */
 
 /*--------------------------- pointer conversion operations -------------------------------*/
 
@@ -1130,11 +1140,11 @@ extern "C"
 #pragma NO_EXIT
 
 void NEAR _CONV_GLOBAL_TO_LOGICAL(void) {
-  __asm {
-        CMPB    #0x40             ;// flash (0x400000..0x7FFFFF) or not?
+  asm {
+        CMPB    #0x40             ;/* flash (0x400000..0x7FFFFF) or not? */
         BLO     Below400000
-// from 0x400000 to 0x7FFFFF
-        CMPB    #0x7F             ;// check for Unpaged areas 0x7FC000..0x7FFFFF and 0x7F4000..0x7F7FFF
+/* from 0x400000 to 0x7FFFFF */
+        CMPB    #0x7F             ;/* check for Unpaged areas 0x7FC000..0x7FFFFF and 0x7F4000..0x7F7FFF */
         BNE     PAGED_FLASH_AREA
 #ifndef __HCS12XE_RAMHM_SET__
         BITX    #0x4000
@@ -1143,81 +1153,81 @@ void NEAR _CONV_GLOBAL_TO_LOGICAL(void) {
         CPX    #0xC000
         BLO     PAGED_FLASH_AREA
 #endif
-// from 0x7F4000 to 0x7F7FFF or 0x7FC000 to 0x7FFFFF
-                                  ;// Note: offset in X is already OK.
-        CLRB                      ;// logical page == 0
+/* from 0x7F4000 to 0x7F7FFF or 0x7FC000 to 0x7FFFFF */
+                                  ;/* Note: offset in X is already OK. */
+        CLRB                      ;/* logical page == 0 */
         RTS
-PAGED_FLASH_AREA:                 ;// paged flash. Map to 0x8000..0xBFFF
-// from 0x400000 to 0x7F3FFF  or 0x7F8000 to 0x7FBFFF
-        LSLX                      ; // shift 24 bit address 2 bits to the left to get correct page in B
+PAGED_FLASH_AREA:                 ;/* paged flash. Map to 0x8000..0xBFFF */
+/* from 0x400000 to 0x7F3FFF  or 0x7F8000 to 0x7FBFFF */
+        LSLX                      ; /* shift 24 bit address 2 bits to the left to get correct page in B */
         ROLB
         LSLX
         ROLB
-        LSRX                      ; // shift back to get offset from 0x8000 to 0xBFFF
+        LSRX                      ; /* shift back to get offset from 0x8000 to 0xBFFF */
         SEC
         RORX
-        RTS                       ;// done
+        RTS                       ;/* done */
 
 Below400000:
-// from 0x000000 to 0x3FFFFF
+/* from 0x000000 to 0x3FFFFF */
 #if 0 /* How should we handle mapping to External Space. There is no logical equivalent. This is an error case! */
-        CMPB    #0x14             ;// check if above 0x140000. If so, its in the external space
+        CMPB    #0x14             ;/* check if above 0x140000. If so, its in the external space */
         BLO     Below140000
-        ERROR   !!!!              ;// this mapping is not possible! What should we do?
+        ERROR   !!!!              ;/* this mapping is not possible! What should we do? */
         RTS
 Below140000:
-// from 0x000000 to 0x13FFFF
+/* from 0x000000 to 0x13FFFF */
 #endif
-        CMPB    #0x10             ;// if >= 0x100000 it's EEPROM
+        CMPB    #0x10             ;/* if >= 0x100000 it's EEPROM */
         BLO     Below100000
-// from 0x100000 to 0x13FFFF (or 0x3FFFFF)
-        CMPB    #0x13             ;// check if its is in the non paged EEPROM area at 0x13FC00..0x13FFFF
+/* from 0x100000 to 0x13FFFF (or 0x3FFFFF) */
+        CMPB    #0x13             ;/* check if its is in the non paged EEPROM area at 0x13FC00..0x13FFFF */
         BLO     Below13FC00
         CPX     #0xFC00
         BLO     Below13FC00
-// from 0x13FC00 to 0x13FFFF (or 0x3FFFFF)
-        LEAX    0x1000,X          ;// same as SUBX #0xF000 // map from 0xFC00 to 0x0C00
+/* from 0x13FC00 to 0x13FFFF (or 0x3FFFFF) */
+        LEAX    0x1000,X          ;/* same as SUBX #0xF000 // map from 0xFC00 to 0x0C00 */
         CLRB
         RTS
 Below13FC00:
-// from 0x100000 to 0x13FBFF
+/* from 0x100000 to 0x13FBFF */
         PSHA
-        TFR     XH,A              ;// calculate logical page
+        TFR     XH,A              ;/* calculate logical page */
         EXG     A,B
         LSRD
         LSRD
         PULA
         ANDX    #0x03FF
-        LEAX    0x0800,X          ;// same as ORX  #0x0800
+        LEAX    0x0800,X          ;/* same as ORX  #0x0800 */
         RTS
 
 Below100000:
-// from 0x000000 to 0x0FFFFF
+/* from 0x000000 to 0x0FFFFF */
         TSTB
         BNE     RAM_AREA
         CPX     #0x1000
         BLO     Below001000
 RAM_AREA:
-// from 0x001000 to 0x0FFFFF
+/* from 0x001000 to 0x0FFFFF */
         CMPB    #0x0F
         BNE     PagedRAM_AREA
 #ifndef __HCS12XE_RAMHM_SET__
         CPX     #0xE000
         BLO     PagedRAM_AREA
-// from 0x0FE000 to 0x0FFFFF
-        SUBX    #(0xE000-0x2000)  ;// map 0xE000 to 0x2000
+/* from 0x0FE000 to 0x0FFFFF */
+        SUBX    #(0xE000-0x2000)  ;/* map 0xE000 to 0x2000 */
 #else
         CPX     #0xA000
         BLO     PagedRAM_AREA
-// from 0x0FA000 to 0x0FFFFF
-        SUBX    #(0xA000-0x2000)  ;// map 0xA000 to 0x2000 
+/* from 0x0FA000 to 0x0FFFFF */
+        SUBX    #(0xA000-0x2000)  ;/* map 0xA000 to 0x2000  */
 #endif
-        CLRB                      ;// Page is 0
+        CLRB                      ;/* Page is 0 */
         RTS
 PagedRAM_AREA:
-// from 0x001000 to 0x0FDFFF
+/* from 0x001000 to 0x0FDFFF */
         PSHA
-        TFR     XH, A             ;// calculate logical page
+        TFR     XH, A             ;/* calculate logical page */
         EXG     A,B
         LSRD
         LSRD
@@ -1226,19 +1236,19 @@ PagedRAM_AREA:
         PULA
 
         ANDX    #0x0FFF
-        LEAX    0x1000,X          ;// same as ORX #0x1000
+        LEAX    0x1000,X          ;/* same as ORX #0x1000 */
         RTS
 
 Below001000:
-// from 0x000000 to 0x000FFF
+/* from 0x000000 to 0x000FFF */
 #if 0
         CMPA    #0x08
         BLO     Below000800
-// from 0x000800 to 0x000FFF
-    // ??? DMA Regs?
+/* from 0x000800 to 0x000FFF */
+    /* ??? DMA Regs? */
         RTS
 Below000800:
-// from 0x000000 to 0x0007FF
+/* from 0x000000 to 0x0007FF */
 #endif
         CLRB
         RTS
@@ -1277,86 +1287,86 @@ void NEAR _CONV_GLOBAL_TO_NEAR(void){
 #if _REUSE_CONV_GLOBAL_TO_LOGICAL  /* do we want an optimized version? */
   __asm JMP _CONV_GLOBAL_TO_LOGICAL;  /* offset for NEAR is same as for LOGICAL. */
 #else
-  __asm {
-        CMPB    #0x40             ;// flash (0x400000..0x7FFFFF) or not?
+  asm {
+        CMPB    #0x40             ;/* flash (0x400000..0x7FFFFF) or not? */
         BLO     Below400000
-// from 0x400000 to 0x7FFFFF
+/* from 0x400000 to 0x7FFFFF */
 #ifndef __HCS12XE_RAMHM_SET__
-        CMPB    #0x7F             ;// check for Unpaged areas 0x7FC000..0x7FFFFF and 0x7F4000..0x7F7FFF
+        CMPB    #0x7F             ;/* check for Unpaged areas 0x7FC000..0x7FFFFF and 0x7F4000..0x7F7FFF */
         BNE     PAGED_FLASH_AREA
         CPX     #0x4000
         BLO     PAGED_FLASH_AREA
-// from 0x7F4000 to 0x7FFFFF
+/* from 0x7F4000 to 0x7FFFFF */
 #else
-        CMPB    #0x7F             ;// check for Unpaged area 0x7FC000..0x7FFFFF
+        CMPB    #0x7F             ;/* check for Unpaged area 0x7FC000..0x7FFFFF */
         BNE     PAGED_FLASH_AREA
         CPX     #0xC000           
         BLO     PAGED_FLASH_AREA
-// from 0x7FC000 to 0x7FFFFF      
+/* from 0x7FC000 to 0x7FFFFF       */
 #endif
-                                  ;// note non PAGED flash areas or paged area 0x7F8000..0x7FBFFF which are mapping all correctly
+                                  ;/* note non PAGED flash areas or paged area 0x7F8000..0x7FBFFF which are mapping all correctly */
         RTS
-PAGED_FLASH_AREA:                 ;// paged flash. Map to 0x8000..0xBFFF
-// from 0x400000 to 0x7F3FFF
-        ANDX    #0x3F00           ;// cut to 0.. 0x3FFF
-        LEAX    0x8000,X          ;// same as ORX  #0x8000     ;// move to 0x8000..0xBFFF
-        RTS                       ;// done
+PAGED_FLASH_AREA:                 ;/* paged flash. Map to 0x8000..0xBFFF */
+/* from 0x400000 to 0x7F3FFF */
+        ANDX    #0x3F00           ;/* cut to 0.. 0x3FFF */
+        LEAX    0x8000,X          ;/* same as ORX  #0x8000     ;// move to 0x8000..0xBFFF */
+        RTS                       ;/* done */
 
 Below400000:
-// from 0x000000 to 0x3FFFFF
+/* from 0x000000 to 0x3FFFFF */
 #if 0 /* How should we handle mapping to External Space. There is no logical equivalent. This is an error case! */
-        CMPB    #0x14             ;// check if above 0x140000. If so, its in the external space
+        CMPB    #0x14             ;/* check if above 0x140000. If so, its in the external space */
         BLO     Below140000
-        ERROR !!!!                ;// this mapping is not possible! What should we do?
+        ERROR !!!!                ;/* this mapping is not possible! What should we do? */
         RTS
 Below140000:
-// from 0x000000 to 0x13FFFF
+/* from 0x000000 to 0x13FFFF */
 #endif
-        CMPB    #0x10             ;// if >= 0x100000 it's EEPROM
+        CMPB    #0x10             ;/* if >= 0x100000 it's EEPROM */
         BLO     Below100000
-// from 0x100000 to 0x13FFFF (or 0x3FFFFF)
-        CMPB    #0x13             ;// check if its is in the non paged EEPROM area at 0x13FC00..0x13FFFF
+/* from 0x100000 to 0x13FFFF (or 0x3FFFFF) */
+        CMPB    #0x13             ;/* check if its is in the non paged EEPROM area at 0x13FC00..0x13FFFF */
         BNE     Below13FC00
         CPX     #0xFC00
         BLO     Below13FC00
-// from 0x13FC00 to 0x13FFFF (or 0x3FFFFF)
-        SUBX    #0xF000           ;// map from 0xFC00 to 0x0C00
+/* from 0x13FC00 to 0x13FFFF (or 0x3FFFFF) */
+        SUBX    #0xF000           ;/* map from 0xFC00 to 0x0C00 */
         RTS
 Below13FC00:
-// from 0x100000 to 0x13FBFF
+/* from 0x100000 to 0x13FBFF */
         ANDX    #0x03FF
-        LEAX    0x800,X           ;// same as ORX  #0x0800
+        LEAX    0x800,X           ;/* same as ORX  #0x0800 */
         RTS
 
 Below100000:
-// from 0x000000 to 0x0FFFFF
+/* from 0x000000 to 0x0FFFFF */
         TBNE    B,RAM_AREA
         CPX     #0x1000
         BLO     Below001000
 RAM_AREA:
-// from 0x001000 to 0x0FFFFF
+/* from 0x001000 to 0x0FFFFF */
         CMPB    #0x0F
         BNE     PagedRAM_AREA
 #ifndef __HCS12XE_RAMHM_SET__
         CPX     #0xE000
         BLO     PagedRAM_AREA
-// from 0x0FE000 to 0x0FFFFF
-        SUBX    #(0xE000-0x2000)  ;// map 0xE000 to 0x2000
+/* from 0x0FE000 to 0x0FFFFF */
+        SUBX    #(0xE000-0x2000)  ;/* map 0xE000 to 0x2000 */
 #else
         CPX     #0xA000
         BLO     PagedRAM_AREA
-// from 0x0FA000 to 0x0FFFFF
-        SUBX    #(0xA000-0x2000)  ;// map 0xA000 to 0x2000
+/* from 0x0FA000 to 0x0FFFFF */
+        SUBX    #(0xA000-0x2000)  ;/* map 0xA000 to 0x2000 */
 #endif
         RTS
 PagedRAM_AREA:
-// from 0x001000 to 0x0FDFFF (0x001000 to 0x0F9FFF if HCS12XE RAM mapping is enabled) 
+/* from 0x001000 to 0x0FDFFF (0x001000 to 0x0F9FFF if HCS12XE RAM mapping is enabled)  */
         ANDX    #0x0FFF
-        LEAX    0x1000,X          ;// same as ORX #0x1000
+        LEAX    0x1000,X          ;/* same as ORX #0x1000 */
         RTS
 
 Below001000:
-// from 0x000000 to 0x000FFF
+/* from 0x000000 to 0x000FFF */
         RTS
   }
 #endif
@@ -1388,24 +1398,24 @@ extern "C"
 #pragma NO_EXIT
 
 void NEAR _CONV_NEAR_TO_GLOBAL(void){
-  __asm {
-    // syntax:
-    //  input 16 bit offset is bit15..bit0
-    //  ppage values: ppage7..ppage0
-    //  epage values: epage7..epage0
-    //  dpage values: dpage7..dpage0
-    //  rpage values: rpage7..rpage0
-        PSHX                      ;// D contains bit15..bit0
-        TFR     X,D               ;// D is cheaper to shift
-        LSLD                      ;// D contains 0 bit14..bit0, C contains bit15
-        BCC     Below8000         ;// bit15 == 0?
-        // from 0x8000 to 0xFFFF
-        LSLD                      ;// D contains 00 bit13..bit0, C contains bit14
+  asm {
+    /* syntax: */
+    /*  input 16 bit offset is bit15..bit0 */
+    /*  ppage values: ppage7..ppage0 */
+    /*  epage values: epage7..epage0 */
+    /*  dpage values: dpage7..dpage0 */
+    /*  rpage values: rpage7..rpage0 */
+        PSHX                      ;/* D contains bit15..bit0 */
+        TFR     X,D               ;/* D is cheaper to shift */
+        LSLD                      ;/* D contains 0 bit14..bit0, C contains bit15 */
+        BCC     Below8000         ;/* bit15 == 0? */
+        /* from 0x8000 to 0xFFFF */
+        LSLD                      ;/* D contains 00 bit13..bit0, C contains bit14 */
         BCC     BelowC000
         LDAB    #0x7F
         PULX
-        RTS                       ;// returns 0b0111 1111 11 bit13...bit0
-BelowC000:                      ;// from 0x8000 to 0xBFFF
+        RTS                       ;/* returns 0b0111 1111 11 bit13...bit0 */
+BelowC000:                      ;/* from 0x8000 to 0xBFFF */
         TFR     D,X
         LDAB    __PPAGE_ADR__
         SEC
@@ -1414,11 +1424,11 @@ BelowC000:                      ;// from 0x8000 to 0xBFFF
         LSRB
         RORX
         LEAS    2,SP
-        RTS                       ;// returns 0b01 ppage7..ppage0 bit13...bit0
+        RTS                       ;/* returns 0b01 ppage7..ppage0 bit13...bit0 */
 Below8000:
-        LSLD                      ;// D contains 00 bit13..bit0, C contains bit14
+        LSLD                      ;/* D contains 00 bit13..bit0, C contains bit14 */
         BCC     Below4000
-        // from 0x4000 to 0x7FFF
+        /* from 0x4000 to 0x7FFF */
         PULX
 #ifndef __HCS12XE_RAMHM_SET__
         LDAB    #0x7F
@@ -1426,12 +1436,12 @@ Below8000:
         LEAX    (0xC000-0x4000),X
         LDAB    #0x0F             
 #endif
-        RTS                       ;// returns 0b0111 1111 01 bit13...bit0
+        RTS                       ;/* returns 0b0111 1111 01 bit13...bit0 */
 
 Below4000:
-        LSLD                      ;// D contains 000 bit12..bit0, C contains bit13
+        LSLD                      ;/* D contains 000 bit12..bit0, C contains bit13 */
         BCC     Below2000
-        // from 0x2000 to 0x3FFF
+        /* from 0x2000 to 0x3FFF */
         PULX
 #ifndef __HCS12XE_RAMHM_SET__
         LEAX    (0xE000-0x2000),X
@@ -1439,35 +1449,35 @@ Below4000:
         LEAX    (0xA000-0x2000),X
 #endif
         LDAB    #0x0F
-        RTS                       ;// returns 0b0000 1111 111 bit12...bit0
+        RTS                       ;/* returns 0b0000 1111 111 bit12...bit0 */
 
 Below2000:
-        LSLD                      ;// D contains 0000 bit11..bit0, C contains bit12
+        LSLD                      ;/* D contains 0000 bit11..bit0, C contains bit12 */
         BCC     Below1000
-        // from 0x1000 to 0x1FFF
+        /* from 0x1000 to 0x1FFF */
         LDAB    __RPAGE_ADR__
         LDAA    #0x10
         MUL
         EORB    0,SP
-        EORB    #0x10             ;// clear 1 bit
+        EORB    #0x10             ;/* clear 1 bit */
         STAB    0,SP
         TFR     A,B
         PULX
         RTS
 
 Below1000:
-        LSLD                      ;// D contains 0000 0 bit10..bit0, C contains bit11
+        LSLD                      ;/* D contains 0000 0 bit10..bit0, C contains bit11 */
         BCC     Below0800
-        // from 0x0800 to 0x0FFF
-        LSLD                      ;// D contains 0000 00 bit9..bit0, C contains bit10
+        /* from 0x0800 to 0x0FFF */
+        LSLD                      ;/* D contains 0000 00 bit9..bit0, C contains bit10 */
         BCC     Below0C00
-    // from 0x0C00 to 0x0FFF
+    /* from 0x0C00 to 0x0FFF */
         LDAB    #0x13
         PULX
         LEAX     0xF000,X
-        RTS                       ;// returns 0b0001 0011 1111 11 bit9...bit0
+        RTS                       ;/* returns 0b0001 0011 1111 11 bit9...bit0 */
 Below0C00:
-    // from 0x0800 to 0x0BFF
+    /* from 0x0800 to 0x0BFF */
         LDAB    __EPAGE_ADR__
         LDAA    #0x04
         MUL
@@ -1511,23 +1521,23 @@ extern "C"
 #pragma NO_EXIT
 
 void NEAR _CONV_STACK_NEAR_TO_GLOBAL(void){
-  __asm {
-    // syntax:
-    //  input 16 bit offset is bit15..bit0
-    //  ppage values: ppage7..ppage0
-    //  epage values: epage7..epage0
-    //  dpage values: dpage7..dpage0
-    //  rpage values: rpage7..rpage0
-    // stack must be between $1000 and $3FFF.
-    // actually placing the stack at $1000 implies that the RPAGE register is not set (and correctly initialized)
+  asm {
+    /* syntax: */
+    /*  input 16 bit offset is bit15..bit0 */
+    /*  ppage values: ppage7..ppage0 */
+    /*  epage values: epage7..epage0 */
+    /*  dpage values: dpage7..dpage0 */
+    /*  rpage values: rpage7..rpage0 */
+    /* stack must be between $1000 and $3FFF. */
+    /* actually placing the stack at $1000 implies that the RPAGE register is not set (and correctly initialized) */
         CPX     #0x2000
         BLO     PAGED_RAM
-    // Map 0x2000 to 0x0FE000 (0x0FA000 for HCS12XE RAM mapping is enabled)
+    /* Map 0x2000 to 0x0FE000 (0x0FA000 for HCS12XE RAM mapping is enabled) */
         LDAB    #0x0F
 #ifndef __HCS12XE_RAMHM_SET__
-        LEAX    (0xE000-0x2000),X ;// LEAX is one cycle faster than ADDX #
+        LEAX    (0xE000-0x2000),X ;/* LEAX is one cycle faster than ADDX # */
 #else
-        LEAX    (0xA000-0x2000),X ;// LEAX is one cycle faster than ADDX #
+        LEAX    (0xA000-0x2000),X ;/* LEAX is one cycle faster than ADDX # */
 #endif
         RTS
 PAGED_RAM:
@@ -1536,7 +1546,7 @@ PAGED_RAM:
         LDAA    #0x20
         MUL
         EORB    0,SP
-        EORB    #0x10             ;// clear 1 bit
+        EORB    #0x10             ;/* clear 1 bit */
         STAB    0,SP
         TFR     A,B
         PULX
@@ -1574,30 +1584,30 @@ extern "C"
 
 void NEAR _CONV_LOGICAL_TO_GLOBAL(void) {
 
-  __asm {
-        // syntax:
-        //  input 16 bit offset is bit15..bit0
-        //  ppage values: ppage7..ppage0
-        //  epage values: epage7..epage0
-        //  dpage values: dpage7..dpage0
-        //  rpage values: rpage7..rpage0
-        PSHA                      ;// save A across this routine.
-        PSHX                      ;// D contains bit15..bit0
-        PSHB                      ;// store page
-        TFR     X,D               ;// D is cheaper to shift
-        LSLD                      ;// D contains 0 bit14..bit0, C contains bit15
-        BCC     Below8000         ;// bit15 == 0?
-    // from 0x8000 to 0xFFFF
-        LSLD                      ;// D contains 00 bit13..bit0, C contains bit14
+  asm {
+        /* syntax: */
+        /*  input 16 bit offset is bit15..bit0 */
+        /*  ppage values: ppage7..ppage0 */
+        /*  epage values: epage7..epage0 */
+        /*  dpage values: dpage7..dpage0 */
+        /*  rpage values: rpage7..rpage0 */
+        PSHA                      ;/* save A across this routine. */
+        PSHX                      ;/* D contains bit15..bit0 */
+        PSHB                      ;/* store page */
+        TFR     X,D               ;/* D is cheaper to shift */
+        LSLD                      ;/* D contains 0 bit14..bit0, C contains bit15 */
+        BCC     Below8000         ;/* bit15 == 0? */
+    /* from 0x8000 to 0xFFFF */
+        LSLD                      ;/* D contains 00 bit13..bit0, C contains bit14 */
         BCC     BelowC000
-        PULB                      ;// cleanup stack
+        PULB                      ;/* cleanup stack */
         LDAB    #0x7F
         PULX
         PULA
-        RTS                       ;// returns 0b0111 1111 11 bit13...bit0
-BelowC000:                      ;// from 0x8000 to 0xBFFF
+        RTS                       ;/* returns 0b0111 1111 11 bit13...bit0 */
+BelowC000:                      ;/* from 0x8000 to 0xBFFF */
         TFR     D,X
-        PULB                      ;// cleanup stack
+        PULB                      ;/* cleanup stack */
         SEC
         RORB
         RORX
@@ -1605,12 +1615,12 @@ BelowC000:                      ;// from 0x8000 to 0xBFFF
         RORX
         LEAS    2,SP
         PULA
-        RTS                       ;// returns 0b01 ppage7..ppage0 bit13...bit0
+        RTS                       ;/* returns 0b01 ppage7..ppage0 bit13...bit0 */
 Below8000:
-        LSLD                      ;// D contains 00 bit13..bit0, C contains bit14
+        LSLD                      ;/* D contains 00 bit13..bit0, C contains bit14 */
         BCC     Below4000
-                                  ;// from 0x4000 to 0x7FFF
-        PULB                      ;// cleanup stack
+                                  ;/* from 0x4000 to 0x7FFF */
+        PULB                      ;/* cleanup stack */
         PULX
 #ifndef __HCS12XE_RAMHM_SET__
         LDAB    #0x7F
@@ -1619,13 +1629,13 @@ Below8000:
         LDAB    #0x0F
 #endif
         PULA
-        RTS                       ;// returns 0b0111 1111 01 bit13...bit0
+        RTS                       ;/* returns 0b0111 1111 01 bit13...bit0 */
 
 Below4000:
-        LSLD                      ;// D contains 000 bit12..bit0, C contains bit13
+        LSLD                      ;/* D contains 000 bit12..bit0, C contains bit13 */
         BCC     Below2000
-    // from 0x2000 to 0x3FFF
-        PULB                      ;// cleanup stack
+    /* from 0x2000 to 0x3FFF */
+        PULB                      ;/* cleanup stack */
         PULX
 #ifndef __HCS12XE_RAMHM_SET__
         LEAX    (0xE000-0x2000),X
@@ -1634,17 +1644,17 @@ Below4000:
 #endif
         LDAB    #0x0F
         PULA
-        RTS                       ;// returns 0b0000 1111 111 bit12...bit0
+        RTS                       ;/* returns 0b0000 1111 111 bit12...bit0 */
 
 Below2000:
-        LSLD                      ;// D contains 0000 bit11..bit0, C contains bit12
+        LSLD                      ;/* D contains 0000 bit11..bit0, C contains bit12 */
         BCC     Below1000
-    // from 0x1000 to 0x1FFF
+    /* from 0x1000 to 0x1FFF */
         PULB
         LDAA    #0x10
         MUL
         EORB    0,SP
-        EORB    #0x10             ;// clear 1 bit
+        EORB    #0x10             ;/* clear 1 bit */
         STAB    0,SP
         TFR     A,B
         PULX
@@ -1652,20 +1662,20 @@ Below2000:
         RTS
 
 Below1000:
-        LSLD                      ;// D contains 0000 0 bit10..bit0, C contains bit11
+        LSLD                      ;/* D contains 0000 0 bit10..bit0, C contains bit11 */
         BCC     Below0800
-    // from 0x0800 to 0x0FFF
-        LSLD                      ;// D contains 0000 00 bit9..bit0, C contains bit10
+    /* from 0x0800 to 0x0FFF */
+        LSLD                      ;/* D contains 0000 00 bit9..bit0, C contains bit10 */
         BCC     Below0C00
-    // from 0x0C00 to 0x0FFF
-        PULB                      ;// cleanup stack
+    /* from 0x0C00 to 0x0FFF */
+        PULB                      ;/* cleanup stack */
         LDAB    #0x13
         PULX
         LEAX    0xF000,X
         PULA
-        RTS                       ;// returns 0b0001 0011 1111 11 bit9...bit0
+        RTS                       ;/* returns 0b0001 0011 1111 11 bit9...bit0 */
 Below0C00:
-    // from 0x0800 to 0x0BFF
+    /* from 0x0800 to 0x0BFF */
         PULB
         LDAA    #0x04
         MUL
@@ -1728,12 +1738,12 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_GLOBAL_GLOBAL_RC(void) {
-  __asm {
+  asm {
         PSHD
         PSHY
-        LDY     4,SP              ;// load return address
-        LDD     2,Y+              ;// load size
-        STY     4,SP              ;// store return address
+        LDY     4,SP              ;/* load return address */
+        LDD     2,Y+              ;/* load size */
+        STY     4,SP              ;/* store return address */
         PULY
         PSHD
         LDAB    3,SP
@@ -1745,7 +1755,7 @@ Loop:
         DECW    0,SP
         BNE     Loop
         LEAS    4,SP
-        _SRET                     ;// debug info only: This is the last instr of a function with a special return
+        _SRET                     ;/* debug info only: This is the last instr of a function with a special return */
         RTS
   }
 }
@@ -1758,18 +1768,18 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _SET_PAGE_REG_HCS12X(void) {
-  // Sets the page contained in A to the register controlling the logical addr contained in X.
-  // saves the old page before and returns it in A together with the page address just below the return address.
-  // X/Y both remain valid.
-  __asm {
+  /* Sets the page contained in A to the register controlling the logical addr contained in X. */
+  /* saves the old page before and returns it in A together with the page address just below the return address. */
+  /* X/Y both remain valid. */
+  asm {
         PSHX
-        // 0000..FFFF
+        /* 0000..FFFF */
         CPX     #0x8000
         BLO     _LO8000
         LDX     #__PPAGE_ADR__
         BRA      Handle
 _LO8000:
-        // 0000..7FFF
+        /* 0000..7FFF */
         CPX     #0x1000
         BLO     _LO1000
         LDX     #__RPAGE_ADR__
@@ -1777,8 +1787,8 @@ _LO8000:
 _LO1000:
         LDX     #__EPAGE_ADR__
 Handle:
-        LDAA    0,X               ;// load old page register content
-        STAB    0,X               ;// set new page register
+        LDAA    0,X               ;/* load old page register content */
+        STAB    0,X               ;/* set new page register */
         STX     4,SP
         PULX
         RTS
@@ -1794,18 +1804,18 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_GLOBAL_LOGICAL_RC(void) {
-  __asm {
+  asm {
         STAB    __GPAGE_ADR__
         EXG     X,Y
         TFR     A,B
-        PSHY                      ;// space to store size
-        PSHX                      ;// allocate some space where _SET_PAGE_REG_HCS12X can return the page
-        LDY     4,SP              ;// load return address
-        LDX     2,Y+              ;// load size
+        PSHY                      ;/* space to store size */
+        PSHX                      ;/* allocate some space where _SET_PAGE_REG_HCS12X can return the page */
+        LDY     4,SP              ;/* load return address */
+        LDX     2,Y+              ;/* load size */
         STY     4,SP
-        LDY     2,SP              ;// restore dest pointer
-        STX     2,SP              ;// store size
-        LDX     0,SP              ;// reload src pointer
+        LDY     2,SP              ;/* restore dest pointer */
+        STX     2,SP              ;/* store size */
+        LDX     0,SP              ;/* reload src pointer */
         __PIC_JSR(_SET_PAGE_REG_HCS12X)
 
 Loop:   GLDAB   1,Y+
@@ -1813,10 +1823,10 @@ Loop:   GLDAB   1,Y+
         DECW    2,SP
         BNE     Loop
 
-        PULX                      ;// reload page register address
-        STAA    0,X               ;// restore old page content (necessary if it was PPAGE)
-        PULX                      ;// clean up stack
-        _SRET                     ;// debug info only: This is the last instr of a function with a special return
+        PULX                      ;/* reload page register address */
+        STAA    0,X               ;/* restore old page content (necessary if it was PPAGE) */
+        PULX                      ;/* clean up stack */
+        _SRET                     ;/* debug info only: This is the last instr of a function with a special return */
         RTS
   }
 }
@@ -1829,16 +1839,16 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_LOGICAL_GLOBAL_RC(void) {
-  __asm {
+  asm {
         STAA    __GPAGE_ADR__
-        PSHY                      ;// space to store size
-        PSHX                      ;// allocate some space where _SET_PAGE_REG_HCS12X can return the page
-        LDY     4,SP              ;// load return address
-        LDX     2,Y+              ;// load size
+        PSHY                      ;/* space to store size */
+        PSHX                      ;/* allocate some space where _SET_PAGE_REG_HCS12X can return the page */
+        LDY     4,SP              ;/* load return address */
+        LDX     2,Y+              ;/* load size */
         STY     4,SP
-        LDY     2,SP              ;// restore dest pointer
-        STX     2,SP              ;// store size
-        LDX     0,SP              ;// reload src pointer
+        LDY     2,SP              ;/* restore dest pointer */
+        STX     2,SP              ;/* store size */
+        LDX     0,SP              ;/* reload src pointer */
 
         __PIC_JSR(_SET_PAGE_REG_HCS12X)
 
@@ -1848,9 +1858,9 @@ Loop:   LDAB    1,X+
         BNE     Loop
 
         PULX
-        STAA    0,X               ;// restore old page content (necessary if it was PPAGE)
-        PULX                      ;// clean up stack
-        _SRET                     ;// debug info only: This is the last instr of a function with a special return
+        STAA    0,X               ;/* restore old page content (necessary if it was PPAGE) */
+        PULX                      ;/* clean up stack */
+        _SRET                     ;/* debug info only: This is the last instr of a function with a special return */
         RTS
   }
 }
@@ -1863,7 +1873,7 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_LOGICAL_LOGICAL_RC(void) {
-  __asm {
+  asm {
         PSHA
         __PIC_JSR(_CONV_LOGICAL_TO_GLOBAL);
         PULA
@@ -1879,7 +1889,7 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_NEAR_GLOBAL_RC(void) {
-  __asm {
+  asm {
         CLRB
         __PIC_JMP(_FAR_COPY_LOGICAL_GLOBAL_RC);
   }
@@ -1893,7 +1903,7 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_NEAR_LOGICAL_RC(void) {
-  __asm {
+  asm {
         PSHA
         __PIC_JSR(_CONV_NEAR_TO_GLOBAL);
         PULA
@@ -1909,7 +1919,7 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_GLOBAL_NEAR_RC(void) {
-  __asm {
+  asm {
         CLRA                      /* near to logical (we may have to use another runtime if this gets non trivial as well :-( */
         __PIC_JMP(_FAR_COPY_GLOBAL_LOGICAL_RC);
   }
@@ -1923,7 +1933,7 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_LOGICAL_NEAR_RC(void) {
-  __asm {
+  asm {
         EXG     A,B
         EXG     X,Y
         PSHA
@@ -1945,9 +1955,9 @@ extern "C"
 #pragma NO_FRAME
 
 void NEAR _FAR_COPY_LOGICAL_GLOBAL(void) {
-  __asm {
+  asm {
         STAA    __GPAGE_ADR__
-        PSHX                      ;// allocate some space where _SET_PAGE_REG_HCS12X can return the page
+        PSHX                      ;/* allocate some space where _SET_PAGE_REG_HCS12X can return the page */
         __PIC_JSR(_SET_PAGE_REG_HCS12X)
 
 Loop:   LDAB    1,X+
@@ -1956,9 +1966,9 @@ Loop:   LDAB    1,X+
         BNE     Loop
 
         PULX
-        STAA    0,X               ;// restore old page content (necessary if it was PPAGE)
+        STAA    0,X               ;/* restore old page content (necessary if it was PPAGE) */
 
-        LDX     4,SP+             ;// load return address and clean stack
+        LDX     4,SP+             ;/* load return address and clean stack */
         JMP     0,X
   }
 }
@@ -1968,3 +1978,4 @@ Loop:   LDAB    1,X+
 
 
 /*----------------- end of code ------------------------------------------------*/
+/*lint --e{766} , runtime.sgm is not a regular header file, it contains a conditionally compiled CODE_SEG pragma */
