@@ -37,7 +37,7 @@ Version   Date          Author    Description of Changes
 *******************************************************************************/
 #include <hidef.h>  //common defines and macros
 #include "Types.h"
-#include "Regdef.h"
+#include "IO_Map.h"
 #include "SCI.h"
 #include "Errors.h"
 #include "PFlash.h"

@@ -32,9 +32,10 @@ Version   Date	        Author		Description of Changes
 1.0       Dec-02-2010   b01802    Initial version
 *******************************************************************************/
 #include "Types.h"
-#include "Regdef.h"
+#include "IO_Map.h"
 #include "PFlash.h"
 #include "Errors.h"
+#include <hidef.h>
 
 #define FLASH_SECTOR_SIZE   0x200
 
@@ -45,6 +46,9 @@ UINT8 PFlash_Program(UINT32 address, UINT16 *ptr)
   UINT8 i;    
   
   while((FSTAT & FSTAT_CCIF_MASK) == 0);   //wait if command in progress
+  
+  DisableInterrupts;
+  
   FSTAT = 0x30;             //clear ACCERR and PVIOL
   
   FCCOBIX = 0x00;
@@ -63,6 +67,8 @@ UINT8 PFlash_Program(UINT32 address, UINT16 *ptr)
   FSTAT = 0x80;         //launch command
   while((FSTAT & FSTAT_CCIF_MASK) == 0); //wait for done
   
+  EnableInterrupts;
+  
   if((FSTAT & (FSTAT_ACCERR_MASK | FSTAT_FPVIOL_MASK)) != 0)
     return FlashProgramError;
   else
@@ -75,6 +81,8 @@ UINT8 PFlash_Program(UINT32 address, UINT16 *ptr)
 UINT8 PFlash_EraseSector(UINT32 address)
 {
   while((FSTAT & FSTAT_CCIF_MASK) == 0);   //wait if command in progress
+  
+  DisableInterrupts;
   FSTAT = 0x30;             //clear ACCERR and PVIOL
   
   FCCOBIX = 0x00;
@@ -85,6 +93,8 @@ UINT8 PFlash_EraseSector(UINT32 address)
   
   FSTAT = 0x80;         //launch command
   while((FSTAT & FSTAT_CCIF_MASK) == 0); //wait for done
+  
+  EnableInterrupts;
   
   if((FSTAT & (FSTAT_ACCERR_MASK | FSTAT_FPVIOL_MASK)) != 0)
     return FlashEraseError;

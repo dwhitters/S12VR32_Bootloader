@@ -34,7 +34,7 @@ Version   Date          Author    Description of Changes
 #include <ctype.h>
 #include <string.h>
 #include "Types.h"
-#include "Regdef.h"
+#include "IO_Map.h"
 #include "Errors.h"
 #include "Srec.h"
 #include "SCI.h"

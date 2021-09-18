@@ -33,7 +33,7 @@ Version   Date          Author    Description of Changes
 *******************************************************************************/
 #include <string.h>
 #include "Types.h"
-#include "Regdef.h"
+#include "IO_Map.h"
 #include "SCI.h"
 #include "Srec.h"
 
@@ -114,7 +114,7 @@ INT8 putchar(INT8 c)
   TxIn = 0;                 //yes. wrap around to the start
  TxBAvail--;                //one less character available in the buffer
  if (XOffRcvd == 0)         //if an XOff has not been received...
-  SCICR2 |= SCICR2_TIE_MASK;//enable SCI transmit interrupts
+  SCI0CR2 |= SCI0CR2_TIE_MASK;//enable SCI transmit interrupts
  EnableInterrupts;
  
  return(c);                 //return the character we sent
@@ -141,7 +141,7 @@ INT8 getchar(void)
  if ((XOffSent != 0) & (RxBAvail >= XOnCount))
  {
    SendXOn = 1;
-   SCICR2 |= SCICR2_TIE_MASK; //enable SCI transmit interrupts
+   SCI0CR2 |= SCI0CR2_TIE_MASK; //enable SCI transmit interrupts
  }
  EnableInterrupts;
  
@@ -155,10 +155,10 @@ void InitSCI(void)
    //SCI Baud Rate SBR[15:0] = bus clock / (16*Baud rate) 
    //or SBR[15:1] = bus clock / (2*Baud rate) for case of IREN=1(Infrared)
    //in this case bus clock = 25MHz and IREN = 0, so SBR[15:0] = 25000000 / 9600 = 2604                     //------------------------------------------------------
-   SCIBDH = (unsigned char) (Baud9600 >> 8);  
-   SCIBDL = (unsigned char) Baud9600 & 0xFF;  
+   SCI0BDH = (unsigned char) (Baud9600 >> 8);  
+   SCI0BDL = (unsigned char) Baud9600 & 0xFF;  
                      //------------------------------------------------------
-   SCICR1 = 0b00000100;    // SCI Control Register 1       
+   SCI0CR1 = 0b00000100;    // SCI Control Register 1       
                      /*  0b10000100
                       *    ||||||||__ PT     Parity Type Bit /1=Odd parity,0=Even parity
                       *    |||||||___ PE     Parity Enable Bit /1=Parity function enabled
@@ -175,7 +175,7 @@ void InitSCI(void)
                      
    /* The TIE is set by putchar and cleared by the ISR. */
                      //------------------------------------------------------                      
-   SCICR2 = 0x2C;    // SCI Control Register 2       
+   SCI0CR2 = 0x2C;    // SCI Control Register 2       
                      /*  0b00101100
                       *    ||||||||__ SBK  Send Break Bit /1=Transmit break characters
                       *    |||||||___ RWU  Receiver Wakeup Bit /1=enables the wakeup function receiver interrupt requests.
@@ -245,28 +245,28 @@ void SetBaud(void)
   OutStr("\r\nChange Terminal Baud Rate and Press Return");
   
   //now wait until the last character has been shifted out
-  while ((SCISR1 & SCISR1_TC_MASK) == 0);
+  while ((SCI0SR1 & SCI0SR1_TC_MASK) == 0);
   
   switch (c) {
   
   case '1':
-    SCIBDH = (unsigned char) (Baud9600 >> 8);  
-    SCIBDL = (unsigned char) Baud9600 & 0xFF; 
+    SCI0BDH = (unsigned char) (Baud9600 >> 8);  
+    SCI0BDL = (unsigned char) Baud9600 & 0xFF; 
     break;
   
   case '2':
-    SCIBDH = (unsigned char) (Baud38400 >> 8);  
-    SCIBDL = (unsigned char) Baud38400 & 0xFF;
+    SCI0BDH = (unsigned char) (Baud38400 >> 8);  
+    SCI0BDL = (unsigned char) Baud38400 & 0xFF;
     break;
    
   case '3':
-    SCIBDH = (unsigned char) (Baud57600 >> 8);  
-    SCIBDL = (unsigned char) Baud57600 & 0xFF;
+    SCI0BDH = (unsigned char) (Baud57600 >> 8);  
+    SCI0BDL = (unsigned char) Baud57600 & 0xFF;
     break;
    
   case '4':
-    SCIBDH = (unsigned char) (Baud115200 >> 8);  
-    SCIBDL = (unsigned char) Baud115200 & 0xFF;
+    SCI0BDH = (unsigned char) (Baud115200 >> 8);  
+    SCI0BDL = (unsigned char) Baud115200 & 0xFF;
     break;
     
   default:                  //invalid choice returns to main menu
@@ -286,11 +286,11 @@ static void RxISR(void)
 { 
   UINT8 c;
   
-  c = SCIDRL;
+  c = SCI0DRL;
   
   if (c == XOff)                //host want us to stop sending data?
   {
-    SCICR2 &= ~SCICR2_TIE_MASK; //yes. disable transmit interrupts
+    SCI0CR2 &= ~SCI0CR2_TIE_MASK; //yes. disable transmit interrupts
     XOffRcvd = 1; //let putchar know that it may continue to place characters
                   //in the buffer but not enable Xmit interrupts
     return;
@@ -298,7 +298,7 @@ static void RxISR(void)
   else if (c == XOn)            //host want us to start sending data?
   {
     if (TxBAvail != TxBufSize)  //anything left in the Tx buffer?
-    SCICR2 |= SCICR2_TIE_MASK;  //yes. enable transmit interrupts
+    SCI0CR2 |= SCI0CR2_TIE_MASK;  //yes. enable transmit interrupts
     XOffRcvd = 0;
     return;
   }
@@ -312,7 +312,7 @@ static void RxISR(void)
     
     //enable transmit interrupts,
     //so the TxISR will be called next time the TDRE bit is set
-    SCICR2 |= SCICR2_TIE_MASK;
+    SCI0CR2 |= SCI0CR2_TIE_MASK;
   }
   
   if (RxBAvail != 0)            //if there are bytes available in the Rx buffer
@@ -335,26 +335,26 @@ static void TxISR(void)
   {
     SendXOn = 0;
     XOffSent = 0;               //reset the XOff flag
-    SCIDRL = XOn;               //send the character
+    SCI0DRL = XOn;               //send the character
     if (TxBAvail == TxBufSize)  //anything in the Tx buffer?
-    SCICR2 &= ~SCICR2_TIE_MASK; //no. disable transmit interrupts
+    SCI0CR2 &= ~SCI0CR2_TIE_MASK; //no. disable transmit interrupts
   }
   else if (SendXOff != 0)       //request to send an XOff to the host?
   {
     SendXOff = 0;               //yes, clear the request
-    SCIDRL = XOff;              //send the character
+    SCI0DRL = XOff;              //send the character
     if (TxBAvail == TxBufSize)  //anything in the Tx buffer?
-    SCICR2 &= ~SCICR2_TIE_MASK; //no. disable transmit interrupts
+    SCI0CR2 &= ~SCI0CR2_TIE_MASK; //no. disable transmit interrupts
   }
   else
   {
-    SCIDRL = TxBuff[TxOut++];   //remove a character from the buffer & send it
+    SCI0DRL = TxBuff[TxOut++];   //remove a character from the buffer & send it
     
     if (TxOut == TxBufSize)     //reached the physical end of the buffer?
       TxOut = 0;                //yes. wrap around to the start
       
     if (++TxBAvail == TxBufSize)  //anything left in the Tx buffer?
-      SCICR2 &= ~SCICR2_TIE_MASK; //no. disable transmit interrupts
+      SCI0CR2 &= ~SCI0CR2_TIE_MASK; //no. disable transmit interrupts
    }
 }
 #pragma CODE_SEG DEFAULT
@@ -369,8 +369,8 @@ interrupt 20 void SCI0_Isr(void)
 //---------------
 //prection against randomly flag clearing
  unsigned char scicr2,scisr1;
- scisr1 = SCISR1;                          // save status register actual status
- scicr2 = SCICR2;                          // save control register actual status
+ scisr1 = SCI0SR1;                          // save status register actual status
+ scicr2 = SCI0CR2;                          // save control register actual status
 //---------------
 
 //******************************************************************************
@@ -378,11 +378,11 @@ interrupt 20 void SCI0_Isr(void)
 //******************************************************************************
 
 //if receiver interrupt is enabled and corresponding interrupt flag is set
- if((scicr2 & SCICR2_RIE_MASK) && ((scisr1 & (SCISR1_OR_MASK | SCISR1_RDRF_MASK))))
+ if((scicr2 & SCI0CR2_RIE_MASK) && ((scisr1 & (SCI0SR1_OR_MASK | SCI0SR1_RDRF_MASK))))
   {
-    if(scisr1 & SCISR1_OR_MASK)            // if overrun error do nothing/something
+    if(scisr1 & SCI0SR1_OR_MASK)            // if overrun error do nothing/something
       {
-        (void)SCIDRL;                            // clear interrupt flag 
+        (void)SCI0DRL;                            // clear interrupt flag 
         // do something
       }
     else
@@ -398,13 +398,13 @@ interrupt 20 void SCI0_Isr(void)
 //******************************************************************************
 
   //if tranceiver interrupt is enabled and corresponding interrupt flag is set
-  if((scicr2 & SCICR2_TIE_MASK) && ((scisr1 & SCISR1_TDRE_MASK)))
+  if((scicr2 & SCI0CR2_TIE_MASK) && ((scisr1 & SCI0SR1_TDRE_MASK)))
   { 
     TxISR();
     
     #if 0
-    while(!(scisr1 & SCISR1_TDRE_MASK));                       //wait for transmit data register empty flag
-    SCIDRL = *ptr_g;                           //Send data
+    while(!(scisr1 & SCI0SR1_TDRE_MASK));                       //wait for transmit data register empty flag
+    SCI0DRL = *ptr_g;                           //Send data
     *ptr_g++;
     packet_lenght--;
     
