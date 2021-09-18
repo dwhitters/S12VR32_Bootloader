@@ -162,39 +162,39 @@ static UINT8 ProgramFlash(void)
         {
           //S12P 128k flash
           case MASK_0M01N:
-                if (!((ProgSRec.LoadAddr >= 0x020000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                if (!((ProgSRec.LoadAddr >= 0x020000UL) && (ProgSRec.LoadAddr <= 0x03EFFFUL)))
                   return(SRecRangeError);
                 break;
           
           //S12HY, S12HA 64k flash
           case MASK_0M34S:
-                if (!((ProgSRec.LoadAddr >= 0x030000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                if (!((ProgSRec.LoadAddr >= 0x030000UL) && (ProgSRec.LoadAddr <= 0x03EFFFUL)))
                   return(SRecRangeError);
                 break;
           
           //S12G 128k flash
           case MASK_0N51A:
-                if (!((ProgSRec.LoadAddr >= 0x020000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                if (!((ProgSRec.LoadAddr >= 0x020000UL) && (ProgSRec.LoadAddr <= 0x03EFFFUL)))
                   return(SRecRangeError);
                 break;
           
           case MASK_0N95B:
-                if (!((ProgSRec.LoadAddr >= 0x004000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                if (!((ProgSRec.LoadAddr >= 0x004000UL) && (ProgSRec.LoadAddr <= 0x03EFFFUL)))
                   return(SRecRangeError);
                 break;
                 
           case MASK_0N48A:
-                if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFFFUL)))
                   return(SRecRangeError);
                 break;
                 
           case MASK_1N48A:
-                if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFFFUL)))
                   return(SRecRangeError);
                 break;
 
           case MASK_0N11N:
-                if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFDFUL)))
+                if (!((ProgSRec.LoadAddr >= 0x038000UL) && (ProgSRec.LoadAddr <= 0x03EFFFUL)))
                   return(SRecRangeError);
                 break;
           
