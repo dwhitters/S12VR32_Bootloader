@@ -241,16 +241,6 @@ static void CopyCodeToRAM(void)
     *Dst++ = *Src++;
 }
 
-#if 0
-/******************************************************************************/
-static void InterruptModuleSetup(void)
-{
-  //set the CPU12X interrupt vector base address in RAM
-  IVBR = (CPU12IVBR >> 8);
-  *(UINT16 *)(CPU12IVBR + SCI0Ch) = (UINT16)SCIISR;
-}
-#endif
-
 /******************************************************************************/
 static void PLL_Init(void)
 {
@@ -259,16 +249,6 @@ static void PLL_Init(void)
   CPMUSYNR = 0x58;
   CPMUPOSTDIV = 0x00;
   while(!(CPMUFLG && CPMUFLG_LOCK_MASK));
-}
-
-/******************************************************************************/
-static void AppExecute(void)
-{
-  CPMUCOP = 0x01;     //enable watchdog
-  CPMUARMCOP = 0x00;
-  //value written to ARMCOP register different from 0xAA or 0x55 will reset
-  //the MCU immediately. The pushbutton on pin PP0 is supposed to be in default
-  //state ('1'), so user application will be started.
 }
 
 /******************************************************************************/
@@ -282,8 +262,6 @@ void main(void) {
   FCLKDIV = 0x18;       //set flash prescaler
   
   CopyCodeToRAM();
-  
-  //InterruptModuleSetup();
   
   InitSCI();            //initialize SCI
  
@@ -326,7 +304,10 @@ void main(void) {
       break;
     
     case 'd':
-      AppExecute();  //go execute the application
+        DisableInterrupts;
+        /* Jump to the application reset vector */
+        asm("ldx 0xEFFA");
+        asm("jmp 0,x");
       break;
     
     default:

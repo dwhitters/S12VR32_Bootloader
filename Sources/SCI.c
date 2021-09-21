@@ -235,8 +235,6 @@ void SetBaud(void)
   
   OutStr("\r\n1.) 9600\r\n"); //display baud rate selection menu
   OutStr("2.) 38400\r\n");
-  OutStr("3.) 57600\r\n");
-  OutStr("4.) 115200\r\n");
   OutStr("? ");
   c = getchar();              //get choice
   (void)putchar(c);           //echo choice
@@ -257,16 +255,6 @@ void SetBaud(void)
   case '2':
     SCI0BDH = (unsigned char) (Baud38400 >> 8);  
     SCI0BDL = (unsigned char) Baud38400 & 0xFF;
-    break;
-   
-  case '3':
-    SCI0BDH = (unsigned char) (Baud57600 >> 8);  
-    SCI0BDL = (unsigned char) Baud57600 & 0xFF;
-    break;
-   
-  case '4':
-    SCI0BDH = (unsigned char) (Baud115200 >> 8);  
-    SCI0BDL = (unsigned char) Baud115200 & 0xFF;
     break;
     
   default:                  //invalid choice returns to main menu

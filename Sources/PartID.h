@@ -35,8 +35,6 @@ Version  Date          Author    Description of Changes
 *******************************************************************************/
 #ifndef _PARTID_H
 #define _PARTID_H
-
-
 //S12P
 #define MASK_0M01N 0x3980
 

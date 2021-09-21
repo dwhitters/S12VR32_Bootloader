@@ -51,20 +51,20 @@ StackTop:       equ     $3900
 _BootStart:
 
   ; ---------------------------------------------------------------------------------
-  ; DEMO9S12PFAME - pin PP0 - pushbutton SW501
+  ; DEMO9S12PFAME - pin PP1 - pushbutton SW501
   
-  movb  #$01, $025C     ; enable pull up resistor on pin PP0
+  ;movb  #$02, $025C     ; enable pull up resistor on PP1 
   
-  nop   ;wait a few cycles for stabilization of the signal
-  nop
-  nop
-  nop
-  nop
+  ;nop   ;wait a few cycles for stabilization of the signal
+  ;nop
+  ;nop
+  ;nop
+  ;nop
   
-  brclr $0259, $01, GoBoot  ; if PP0 == 0 then start the bootloader
+  ;brclr $0259, #$02, GoBoot  ; if PP0 == 0 then start the bootloader
                             ; if PP0 == 1 then start the application
   
-  movb  #$00, $025C  ; disable pull up resistor on pin PP0 - restore default state
+  ;movb  #$00, $025C  ; disable pull up resistor on pin PP0 - restore default state
   ; ---------------------------------------------------------------------------------
   ; DEMO9S12HY64 - pin PAD07 - pushbutton SW4
   
