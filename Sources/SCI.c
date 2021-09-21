@@ -148,7 +148,6 @@ INT8 getchar(void)
  return(c);     //return the character retrieved from receive buffer
 }
 
-
 /******************************************************************************/
 void InitSCI(void)
 {
@@ -197,35 +196,6 @@ void InitSCI(void)
   XOffSent = 0;             //XOff character has not been sent
   XOffRcvd = 0;             //XOff character has not been received
   SendXOff = 0;             //Don't send an XOff
-
-
-
-
-#if 0
-
-
-
-  tSCI* pSCI = (tSCI*) SCI0;
-
-  #if 1
-	UINT16 SBR = 25000000 / 9600;
-	pSCI->scibdh.byte = (unsigned char) (SBR >> 8);
-	pSCI->scibdl.byte = (unsigned char) SBR & 0xFF;
-	pSCI->scicr2.bit.te = 1;			/* Enable transmitter */
-	pSCI->scicr2.bit.re = 1;			/* Enable receiver */
-	pSCI->scicr2.bit.tie = 1;			/* Enable transmitter interrupt */
-	pSCI->scicr2.bit.rie = 1;			/* Enable receiver interrupt. */
-
-#if LIN_PHY_INTEGRATED
-		MODIFY_ROUTING = ROUTING_VALUE;		/* Enable SCI0 on external pins and not only on LINPHY */
-#endif
-  #endif
-  
-
-  //SCIBD = Baud9600;         //initialize the Baud register
-  //enable both the transmitter & receiver
-  // SCICR2 = SCICR2_TE_MASK + SCICR2_RE_MASK + SCICR2_RIE_MASK;
-  #endif
 }
  
 /******************************************************************************/
@@ -259,7 +229,6 @@ void SetBaud(void)
     
   default:                  //invalid choice returns to main menu
     break;
-  
   }
   
   (void)getchar();          //and wait for the user to change the baud rate
@@ -355,7 +324,7 @@ static void TxISR(void)
 interrupt 20 void SCI0_Isr(void)  
 { 
 //---------------
-//prection against randomly flag clearing
+//protection against randomly flag clearing
  unsigned char scicr2,scisr1;
  scisr1 = SCI0SR1;                          // save status register actual status
  scicr2 = SCI0CR2;                          // save control register actual status
@@ -371,13 +340,11 @@ interrupt 20 void SCI0_Isr(void)
     if(scisr1 & SCI0SR1_OR_MASK)            // if overrun error do nothing/something
       {
         (void)SCI0DRL;                            // clear interrupt flag 
-        // do something
       }
     else
-      {
-		RxISR();
-        
-      }
+    {
+         RxISR();
+    }
   }
   
 
@@ -388,21 +355,6 @@ interrupt 20 void SCI0_Isr(void)
   //if tranceiver interrupt is enabled and corresponding interrupt flag is set
   if((scicr2 & SCI0CR2_TIE_MASK) && ((scisr1 & SCI0SR1_TDRE_MASK)))
   { 
-    TxISR();
-    
-    #if 0
-    while(!(scisr1 & SCI0SR1_TDRE_MASK));                       //wait for transmit data register empty flag
-    SCI0DRL = *ptr_g;                           //Send data
-    *ptr_g++;
-    packet_lenght--;
-    
-    if (packet_lenght == 0)                     //end of packet detection
-          {
-            scisr1 = (scisr1 & ~SCISR1_TDRE_MASK);                    //TDRE interrupt requests disabled
-          }
-          #endif
-    
+      TxISR();
   }
-  
-  
 }

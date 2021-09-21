@@ -64,27 +64,7 @@ _BootStart:
   ;brclr $0259, #$02, GoBoot  ; if PP0 == 0 then start the bootloader
                             ; if PP0 == 1 then start the application
   
-  ;movb  #$00, $025C  ; disable pull up resistor on pin PP0 - restore default state
-  ; ---------------------------------------------------------------------------------
-  ; DEMO9S12HY64 - pin PAD07 - pushbutton SW4
-  
-  ;movb  #$84, $0277     ; enable pull up resistor on pin PAD07
-                        ; enable pull up resistor in pin PAD02 - this enables
-                        ; the transmitter on serial interface (MAX3387E)
-  
-  ; nop   ;wait a few cycles for stabilization of the signal
-  ; nop
-  ; nop
-  ; nop
-  ; nop
-  
-  ;brclr $0271, $80, GoBoot  ; if PAD07 == 0 then start the bootloader
-                            ; if PAD07 == 1 then start the application
-  
-  ;movb  #$04, $0277   ; disable pull up resistor on pin PAD07 - restore default state
-                      ; keep the PAD02 high
-  ; ---------------------------------------------------------------------------------
-  
+  ;movb  #$00, $025C  ; disable pull up resistor on pin PP0 - restore default state  
   
   ldd   AppResetVect
   cpd   #$ffff
