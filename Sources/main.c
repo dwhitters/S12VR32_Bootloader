@@ -68,6 +68,9 @@ Preload command file MUST contain command FLASH NOUNSECURE!
 #define CPU12IVBR           0x3F00
 #define SCI0Ch              0xD6
 
+#define BOOT_REQUEST_KEY 0xAAAAu
+#define BOOT_REQUEST_ADDR_EEPROM 0x047Cu
+
 #define __SEG_START_REF(a)  __SEG_START_ ## a
 #define __SEG_END_REF(a)    __SEG_END_ ## a
 #define __SEG_SIZE_REF(a)   __SEG_SIZE_ ## a
@@ -448,6 +451,9 @@ static void PLL_Init(void)
 void main(void) {
 
   INT8 c;
+
+  UINT16 boot_val;
+  UINT16 app_reset_vec;
   MODRR2_MODRR = 0x06; //route SCI0 to Port S
   
   PLL_Init();           //set bus clock 25MHz
@@ -460,12 +466,28 @@ void main(void) {
   
   InitSCI();            //initialize SCI
  
+  boot_val = EEPROM_Read_Word(BOOT_REQUEST_ADDR_EEPROM);
+
   EnableInterrupts;     //enable interrupts for the SCI
  
   OutStr("\f\r\nS12 Bootloader v1.0\r\n");    // sign-on
   
-  EEPROM_Erase_Sector(0x00400u);
-  EEPROM_Program_Word(0x00400u, 0xaaaau);
+  /* When the value is 0xaaaau, we must stay in the bootloader. */
+  if(boot_val != BOOT_REQUEST_KEY) {
+    app_reset_vec = EEPROM_Read_Word(0x0EFFEu);
+    if(app_reset_vec == 0xFFFFu) {
+      /* Reset vector not present. */
+      OutStr("\r\nApp not present.\r\n");
+    } else {
+      OutStr("\r\nJumping to app\r\n");
+      DisableInterrupts;
+      /* Jump to the application reset vector */
+      asm("ldx 0xEFFA");
+      asm("jmp 0,x");
+    }
+  } else {
+    OutStr("\r\nBoot Requested...\r\n");
+  }
 
   for(;;)
   {
@@ -495,8 +517,9 @@ void main(void) {
         OutStr(GetErrorString(c));    //and report an error if there was one
       else
         OutStr("\r\nDownloaded successfully!\r\n");
-      break;
-      
+        EEPROM_Erase_Sector(BOOT_REQUEST_ADDR_EEPROM);
+        break;
+
     case 'c':
       SetBaud();     //go set the SCI baud rate
       break;

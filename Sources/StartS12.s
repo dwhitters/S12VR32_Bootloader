@@ -66,12 +66,12 @@ _BootStart:
   
   ;movb  #$00, $025C  ; disable pull up resistor on pin PP0 - restore default state  
   
-  ldd   AppResetVect
-  cpd   #$ffff
-  beq   GoBoot          ; if the application reset vector is not available
+  ;ldd   AppResetVect
+  ;cpd   #$ffff
+  ;beq   GoBoot          ; if the application reset vector is not available
                         ; then start the bootloader
-  ldx   AppResetVect
-  jmp    0,x              ; jump to the application
+  ;ldx   AppResetVect
+  ;jmp    0,x              ; jump to the application
   
   
 GoBoot:
