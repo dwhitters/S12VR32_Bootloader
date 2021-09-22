@@ -12,3 +12,4 @@ Bootloader address-range = 0x0003_F000-0x0003_FF08
 
 ### Application reset and interrupt vector table addressing
 These should be placed at 0x0003_EFxx instead of 0x0003_FFxx.
+![VectorAddresses](./Assets/VectorAddresses.jpg)
