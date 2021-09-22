@@ -79,6 +79,199 @@ __SEG_START_DEF (RAM_CODE);
 __SEG_END_DEF   (RAM_CODE);
 __SEG_SIZE_DEF  (RAM_CODE);
 
+/**********************************************************************
+* Procedure : EEPROM_init
+* Description : Initilize EEPROM clock to 1Mhz
+* In parameters : fdiv - divisor of the bus frequency in order to have a flash EEPROM of 1 MHz
+* Out parameters : None
+* Return value : void
+/**********************************************************************/
+
+void EEPROM_init(unsigned char fdiv)
+{
+  while (FSTAT_CCIF == 0)
+  {
+  };              //wait if command in progress
+  FCLKDIV = fdiv; //Fbus/fdiv = 1MHz
+}
+
+/**********************************************************************
+* Procedure : EEPROM_Erase_Verify
+* Description : Check if EEPROM specified region has been erased
+* In parameters :    address - First address thats wants to be verified
+*				     number_of_words - Number of words after first address that wants to be verified
+* Out parameters :   
+* Return value :     MISALIGNED_ADDRESS - If address is not correctly aligned to one in EEPROM region
+					 ACCESS_ERROR - Error accessing specified address
+					 NON_ERASED - Specified address is not erased
+					 ERASED - Specified address was already erased
+/**********************************************************************/
+unsigned char EEPROM_Erase_Verify(unsigned long int address, unsigned int number_of_words)
+{
+  unsigned char index = 0;
+  if ((address & 0x00000001) != 0)
+    return FlashEraseError;
+  while (FSTAT_CCIF == 0)
+  {
+  };            //wait if command in progress
+  FSTAT = 0x30; //clear ACCERR and PVIOL
+  FCCOBIX = 0b000;
+  FCCOBHI = 0x10;
+  FCCOBLO = (address & 0x00FF0000) >> 16;
+  FCCOBIX = 0b001;
+  FCCOB = address & 0x0000FFFF;
+  FCCOBIX = 0b010;
+  FCCOB = number_of_words;
+  FSTAT_CCIF = 1; //launch command
+  while (FSTAT_CCIF == 0)
+  {
+  }; //wait for done
+  if ((FSTAT & (FSTAT_ACCERR_MASK | FSTAT_FPVIOL_MASK)) != 0)
+    return FlashEraseError;
+  //check if phrases are erased and return result
+  if (FSTAT_MGSTAT != 0)
+    return FlashEraseError;
+  else
+    return noErr;
+}
+
+/**********************************************************************
+* Procedure : EEPROM_Erase_Sector
+* Description : Erase EEPROM specified sector. Sector size is 4 bytes
+* In parameters :    address - Beginning of the sector
+* Out parameters :   
+* Return value :     MISALIGNED_ADDRESS - If address is not correctly aligned to one in EEPROM region
+					 ACCESS_ERROR - Error accessing specified address
+					 OK - Sector correctly erased
+/**********************************************************************/
+
+unsigned char EEPROM_Erase_Sector(unsigned long int address)
+{
+  unsigned char index = 0;
+  if ((address & 0x00000001) != 0)
+    return FlashEraseError;
+  while (FSTAT_CCIF == 0)
+  {
+  };            //wait if command in progress
+  FSTAT = 0x30; //clear ACCERR and PVIOL
+  FCCOBIX = 0b000;
+  FCCOBHI = 0x12; // Erase sector command
+  FCCOBLO = (address & 0x00FF0000) >> 16;
+  FCCOBIX = 0b001;
+  FCCOB = address & 0x0000FFFF;
+  FSTAT_CCIF = 1; //launch command
+  while (FSTAT_CCIF == 0)
+  {
+  }; //wait for done
+  if ((FSTAT & (FSTAT_ACCERR_MASK | FSTAT_FPVIOL_MASK)) != 0)
+    return FlashEraseError;
+  else
+    return noErr;
+}
+
+/**********************************************************************
+* Procedure : EEPROM_Program_Word
+* Description : 	 Write word into EEPROM specified address.
+* In parameters :    address - Beginning of the sector
+*					 data - Word to be written in desired sector
+* Out parameters :   
+* Return value :     MISALIGNED_ADDRESS - If address is not correctly aligned to one in EEPROM region
+					 ACCESS_ERROR - Error accessing specified address
+					 OK - Sector correctly erased
+/**********************************************************************/
+
+unsigned char EEPROM_Program_Word(unsigned long int address, unsigned int data)
+{
+  unsigned char index = 0;
+  if ((address & 0x00000001) != 0)
+    return FlashEraseError;
+  while (FSTAT_CCIF == 0)
+  {
+  };            //wait if command in progress
+  FSTAT = 0x30; //clear ACCERR and PVIOL
+  FCCOBIX = 0b000;
+  FCCOBHI = 0x11;
+  FCCOBLO = (address & 0x00FF0000) >> 16;
+  FCCOBIX = 0b001;
+  FCCOB = address & 0x0000FFFF;
+  FCCOBIX = 0b010;
+  FCCOB = data;
+  FSTAT_CCIF = 1; //launch command
+  while (FSTAT_CCIF == 0)
+  {
+  }; //wait for done
+  if ((FSTAT & (FSTAT_ACCERR_MASK | FSTAT_FPVIOL_MASK)) != 0)
+    return FlashEraseError;
+  else
+    return noErr;
+}
+
+/**********************************************************************
+* Procedure : EEPROM_Program_array
+* Description : 	 Write multiple words into EEPROM specified addresses.
+* In parameters :    address - First address to be written into
+*					 array - Array containing the words to be written into EEPROM 
+*					 number_of_words - Number of words to be written in to EEPROM
+* Out parameters :   
+* Return value :     MISALIGNED_ADDRESS - If address is not correctly aligned to one in EEPROM region
+					 ACCESS_ERROR - Error accessing specified address
+					 OK - Sector correctly erased
+/**********************************************************************/
+unsigned char EEPROM_Program_array(unsigned long int address, unsigned int array[], unsigned int number_of_words)
+{
+  unsigned char index = 0;
+  if ((address & 0x00000001) != 0)
+    return FlashEraseError;
+  while (FSTAT_CCIF == 0)
+  {
+  };            //wait if command in progress
+  FSTAT = 0x30; //clear ACCERR and PVIOL
+  FCCOBIX = 0b000;
+  FCCOBHI = 0x11;
+  FCCOBLO = (address & 0x00FF0000) >> 16;
+  FCCOBIX = 0b001;
+  FCCOB = address & 0x0000FFFF;
+  FCCOBIX = 0b010;
+  FCCOB = array[0];
+  if (number_of_words > 1)
+  {
+    FCCOBIX = 0b011;
+    FCCOB = array[1];
+  }
+  if (number_of_words > 2)
+  {
+    FCCOBIX = 0b100;
+    FCCOB = array[2];
+  }
+  if (number_of_words > 3)
+  {
+    FCCOBIX = 0b101;
+    FCCOB = array[3];
+  }
+
+  FSTAT_CCIF = 1; //launch command
+  while (FSTAT_CCIF == 0)
+  {
+  }; //wait for done
+  if ((FSTAT & (FSTAT_ACCERR_MASK | FSTAT_FPVIOL_MASK)) != 0)
+    return FlashEraseError;
+  else
+    return noErr;
+}
+
+/**********************************************************************
+* Procedure : EEPROM_Read_Word
+* Description : Read specified address
+* In parameters : address - Address that wants to be read from
+* Out parameters : None
+* Return value : Value of the specified address
+/**********************************************************************/
+unsigned int EEPROM_Read_Word(unsigned long int address)
+{
+  unsigned int data16;
+  data16 = *(unsigned int *)address;
+  return data16;
+}
 
 /******************************************************************************/
 static UINT8 EraseFlash(void)
@@ -263,11 +456,16 @@ void main(void) {
   
   CopyCodeToRAM();
   
+  EEPROM_init(0x18);
+  
   InitSCI();            //initialize SCI
  
   EnableInterrupts;     //enable interrupts for the SCI
  
   OutStr("\f\r\nS12 Bootloader v1.0\r\n");    // sign-on
+  
+  EEPROM_Erase_Sector(0x00400u);
+  EEPROM_Program_Word(0x00400u, 0xaaaau);
 
   for(;;)
   {
